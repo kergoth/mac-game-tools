@@ -1,0 +1,74 @@
+#!/bin/sh
+
+prompt_bool () {
+    if [[ $# -gt 1 ]]; then
+        default="$2"
+    else
+        default="y"
+    fi
+    case $default in
+        [yY])
+            y_side="Y"
+            n_side="n"
+            default_code=0
+            ;;
+        [nN])
+            n_side="N"
+            y_side="y"
+            default_code=1
+            ;;
+    esac
+
+    while true; do
+        read -n 1 -p "$1 [$y_side|$n_side] " result </dev/tty
+        printf "\n"
+        case "$result" in
+            [yY])
+                return 0
+                ;;
+            [nN])
+                return 1
+                ;;
+            "")
+                return $default_code
+                ;;
+            *)
+                echo >&2 "Invalid input '$result'"
+                ;;
+        esac
+    done
+}
+
+if [ $# -lt 1 ]; then
+    set -- .
+fi
+
+#dos32a="$HOME/Downloads/dos32a-912-bin"
+dos32a="/Volumes/My Passport/Game Tools/dos32a"
+#dos32a="/Users/kergoth/Applications/Games/Pending/Game Tools/dos32a"
+if [ ! -e "$dos32a" ]; then
+    echo >&2 "$dos32a does not exist, aborting"
+    exit 1
+fi
+
+find "$@" -iname \*.exe | grep -Evi 'dos32a|setup|install|DOS Toolkit|\.cdrom/' | sed 's,\(.*/\).*,\1,' | sort -u | while read gamedir; do
+    echo >&2 "Processing $gamedir"
+
+    cp -a "$dos32a/." "$gamedir/dos32a/"
+
+    echo "set dos32a=dos32a" >"$gamedir"/dos32a.bat
+    find "$gamedir" -maxdepth 1 -iname \*.exe | grep -Evi 'dos4gw|dos32a|setup|install' | while read exe; do
+        if prompt_bool "Update $exe?"; then
+            cp -a "$exe" "$exe.old"
+            printf "%s /r %s\n" 'dos32a\binw\sb' "${exe##*/}" >>"$gamedir"/dos32a.bat
+        fi
+    done
+    echo "exit" >>"$gamedir"/dos32a.bat
+    open -nW -a DOSBox "$gamedir/dos32a.bat"
+    rm -rf "$gamedir/dos32a/" "$gamedir/dos32a.bat"
+done
+
+find "$@" -iname dos4gw.exe | grep -v '\.cdrom/' | while read exe; do
+    cp -a "$exe" "$exe.old"
+    cp -av "$dos32a/binw/dos32a.exe" "$exe"
+done

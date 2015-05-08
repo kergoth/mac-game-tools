@@ -1,0 +1,28 @@
+#!/bin/sh
+
+dir="$1"
+
+if ! echo "$dir" | grep -Eq "\.app/(drive_c|Contents)"; then
+    echo >&2 "Usage: ${0##*/} DIR_TO_MOVE"
+    echo >&2
+    echo >&2 "Where DIR_TO_MOVE is the dir inside the wrapper to be moved back"
+    exit 1
+fi
+
+app="$(echo "$dir" | sed "s,\.app/.*,.app,")"
+appname="$(echo "${app##*/}" | sed "s, (Steam),,; s,\.app$,,")"
+
+if ! [ -h "$1" ]; then
+    echo >&2 "Error: $1 is not a link"
+    exit 2
+fi
+
+outdir="$appname-${1##*/}"
+if ! [ -e "$outdir" ]; then
+    echo >&2 "Error: $outdir does not exist"
+    exit 3
+fi
+
+rm "$1"
+mv "$outdir" "$1"
+printf 'Moved `%s` back to `%s`\n' "$outdir" "${1##*/}"

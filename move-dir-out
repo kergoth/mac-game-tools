@@ -1,0 +1,22 @@
+#!/bin/sh
+
+dir="$1"
+
+if ! echo "$dir" | grep -Eq "\.app/(drive_c|Contents)"; then
+    echo >&2 "Usage: ${0##*/} DIR_TO_MOVE"
+    echo >&2
+    echo >&2 "Where DIR_TO_MOVE is the dir inside the wrapper to be moved out"
+    exit 1
+fi
+
+app="$(echo "$dir" | sed "s,\.app/.*,.app,")"
+appname="$(echo "${app##*/}" | sed "s, (Steam),,; s,\.app$,,")"
+
+outdir="$appname-${1##*/}"
+if [ ! -e "$outdir" ]; then
+    mv "$1" "$outdir"
+else
+    rm -rf "$1"
+fi
+ln -s "$PWD/$outdir" "$1"
+printf 'Moved `%s` to `%s`\n' "${1##*/}" "$outdir"

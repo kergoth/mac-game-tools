@@ -1,0 +1,134 @@
+#!/bin/bash
+
+set -e
+
+rsync_cmd () {
+    set -x
+    #command rsync -aNAHXx --info=progress2 --fileflags --force-change --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes --protect-decmpfs "$@"
+    command rsync -aNAXx --info=progress2 --fileflags --force-change --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes --protect-decmpfs "$@"
+    set +x
+}
+
+gather_gamedirs () {
+    while IFS="$(printf '\t')" read game type; do
+        exclude_game="$game"
+        if [ "$type" = "windows (wineskin)" ]; then
+            if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
+                # Grab underlying app
+                exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
+            fi
+
+            gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
+                printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
+                continue
+            }
+            gamedir="${gameexe%/*}"
+            drive="$exclude_game/Contents/Resources/drive_c"
+        elif [ "$type" = "windows (cider)" ]; then
+            gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || continue
+            gamedir="${gamedir#C:}"
+            gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
+            drive="$game/Contents/Resources/transgaming/c_drive"
+        else
+            continue
+        fi
+        gamedir="${gamedir#/}"
+
+        rel_game="$(echo "$game" | sed "s,^/Volumes/[^/]*/,,")"
+        echo "$rel_game" >>"$include"
+        case "$gamedir" in
+            "Program Files/Steam")
+                echo "$drive/$gamedir/SteamApps/"*.acf
+                for i in "$drive/$gamedir/SteamApps/common/"*/; do
+                    echo "$i"
+                done
+                ;;
+            "Program Files/"*)
+                gamedir="${gamedir#*/}"
+                echo "$drive/Program Files/${gamedir%%/*}"
+                ;;
+            *)
+                echo "$drive/${gamedir%/*}"
+                ;;
+        esac | sed "s,^/Volumes/[^/]*/,," >>"$exclude"
+    done
+}
+
+
+if [ $# -lt 1 ]; then
+    echo >&2 "Usage: ${0##*/} DESTDIR"
+    exit 2
+fi
+
+scriptdir="$(dirname "$0")"
+destdir="${1%/}"
+mkdir -p "$destdir"
+
+include="$(mktemp -t "wrapper-backup.XXXXXX")"
+exclude="$(mktemp -t "wrapper-backup.XXXXXX")"
+trap 'rm -f $include $exclude' EXIT INT TERM
+
+backupdate="$(date -u '+%Y-%m-%dT%H%M%SZ')"
+# for i in {0..9} {A..Z}; do
+#     echo $i..
+#     >"$include"
+#     >"$exclude"
+#     for gamedir in /Volumes/My\ Passport/Games*/; do
+#         gamedir="${gamedir%/}"
+#         relpath="${gamedir#/Volumes/My Passport/}"
+#         case "$relpath" in
+#             *Backlog|*Broken)
+#                 continue
+#                 ;;
+#         esac
+#         game_destdir="$destdir/$relpath"
+#         mkdir -p "$game_destdir"
+
+#         mdfind -onlyin "$gamedir" "kMDItemContentType == com.apple.application-bundle && kMDItemUserTags == 'Game'" -0 | xargs -0 "$scriptdir/identify-game-wrapper" | grep -i "^$gamedir/$i" | gather_gamedirs
+#         sed "s,^$relpath/,," "$include" >"${include}.new"
+#         sed "s,^$relpath/,," "$exclude" >"${exclude}.new"
+#         "/Applications/Carbon Copy Cloner.app/Contents/MacOS/rsync" --progress --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate/$relpath" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$gamedir/" "$game_destdir/" 2>/dev/null | grep -v DEBUG
+#         #rsync --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$gamedir/" "$game_destdir/"
+#         # rsync_cmd -r --delete --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$gamedir/" "$game_destdir/"
+#     done
+# done
+for gamedir in /Volumes/My\ Passport/Games*/; do
+    gamedir="${gamedir%/}"
+    relpath="${gamedir#/Volumes/My Passport/}"
+    case "$relpath" in
+        *Backlog|*Broken)
+            continue
+            ;;
+    esac
+    game_destdir="$destdir/$relpath"
+    mkdir -p "$game_destdir"
+
+    mdfind -onlyin "$gamedir" "kMDItemContentType == com.apple.application-bundle && kMDItemUserTags == 'Game'" -0 | xargs -0 "$scriptdir/identify-game-wrapper" | gather_gamedirs
+    sed "s,^$relpath/,," "$include" >"${include}.new"
+    sed "s,^$relpath/,," "$exclude" >"${exclude}.new"
+    "/Applications/Carbon Copy Cloner.app/Contents/MacOS/rsync" --progress --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate/$relpath" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$gamedir/" "$game_destdir/" 2>/dev/null | grep -v DEBUG
+done
+rmdir "$destdir/_SafetyNet/$backupdate" 2>/dev/null || true
+exit 0
+
+if [ ! -d "/Volumes/Games" ]; then
+    echo >&2 "Warning: /Volumes/Games is not mounted, skipping"
+else
+    rm -f "$include" "$exclude"
+    for gamedir in /Volumes/Games/Games*/; do
+        gamedir="${gamedir%/}"
+        relpath="${gamedir#/Volumes/Games/}"
+        case "$relpath" in
+            *Backlog)
+                continue
+                ;;
+        esac
+        game_destdir="$destdir/$relpath"
+        if ! [ -d "/Volumes/My Passport/$relpath" ]; then
+            find "$gamedir" -iname \*.app -prune -print0 -maxdepth 2 | xargs -0 "$scriptdir/identify-game-wrapper" | gather_gamedirs
+            sed "s,^$relpath/,," "$include" >"$include.new" && mv "$include.new" "$include"
+            sed "s,^$relpath/,," "$exclude" >"$exclude.new" && mv "$exclude.new" "$exclude"
+            rsync_cmd -r --delete --delete-excluded --files-from="$include" --exclude-from="$exclude" "$gamedir/" "$game_destdir/"
+        fi
+    done
+fi

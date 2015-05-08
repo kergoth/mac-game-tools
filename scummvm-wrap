@@ -1,0 +1,4 @@
+#!/bin/sh
+
+#exec "~/Applications/Game and Porting Tools/ScummVMwrapper/wrap" "$@"
+exec "/Volumes/Archive/Mac Applications/Game Tools/ScummVMwrapper/wrap" "$@"

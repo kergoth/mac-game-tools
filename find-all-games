@@ -1,0 +1,16 @@
+#!/bin/sh
+
+find_app_symlinks_resolved () {
+    find "$@" -iname \*.app -prune -type l -print -maxdepth 3 | \
+        tr '\n' '\0' | xargs -0 -n 1 abs_readlink
+}
+
+{
+    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
+    find_app_symlinks_resolved /Volumes/My\ Passport/Games*/
+    if [ ! -e /Volumes/Games\ Archive ]; then
+        echo >&3 "Warning: Games Archive is not mounted"
+    fi
+    find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
+    find_app_symlinks_resolved /Volumes/Games\ Archive/Games*/
+} | grep -Ev '\.Trashes|Utilities|Archived|Pending|Backup' | sed 's,//,/,g' | sort -u

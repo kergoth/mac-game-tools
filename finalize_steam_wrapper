@@ -1,0 +1,5 @@
+#!/bin/sh
+
+PATH="$(dirname "$0"):$PATH"
+
+finalize_wrapper "$1/$(readlink "$1/Game")"

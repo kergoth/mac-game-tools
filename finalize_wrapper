@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Version 0.4
+
+PATH=/usr/libexec:$PATH
+
+installdest="$1"
+if [ $# -gt 1 ]; then
+    app="$2"
+else
+    app="${installdest%.app/*}.app"
+    app="${app%.app}.app"
+fi
+
+if [ "$installdest" = "$app" ] || [ ! -e "$app" ]; then
+    echo >&2 "Usage: ${0##*/} INSTALLDEST [APP]"
+    echo >&2
+    echo >&2 "Where INSTALLDEST is the path to the install path inside the wrapper. E.g."
+    echo >&2 "  \$ ${0##*/} ./Foo.app/Contents/Resources/drive_c/Program Files/Foo"
+    exit 1
+fi
+
+rm -f "$app/Game"
+ln -s "${installdest#$app/}" "$app/Game"
+
+echo >&2 "Setting up extras, icons, and links"
+mkdir -p "$app/Extras"
+ls -1 "$installdest"/ | \
+  grep -Ei '\.(pdf|txt|doc|rtf|html?)$' | \
+  while read doc; do
+    ln -sf "../${installdest#$app/}/$doc" "$app/Extras/$doc"
+  done
+rmdir "$app/Extras" 2>/dev/null || true
+
+mkdir -p "$app/Icons"
+find "$installdest/" -name \*.ico | while read ico; do
+    cp "$ico" "$app/Icons"
+done
+
+find "$installdest/" -name \*.exe -print0 | \
+    xargs -0 wrestool -x -t14 -o "$app/Icons" 2>/dev/null || true
+
+rmdir "$app/Icons" 2>/dev/null || true
+
+icondest="$(PlistBuddy -c "Print :CFBundleIconFile" "$app/Contents/Info.plist")"
+if [ -d "$app/Icons" ] && [ -n "$icondest" ]; then
+    cat >"$app/Icons/finish" <<END
+#!/bin/sh
+
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
+app="\${scriptdir%/*}"
+cd "\$scriptdir"
+if ls *.icns &>/dev/null; then
+    icns="\$(ls *.icns | head -n 1)"
+    cp "\$icns" "\$app/Contents/Resources/$icondest"
+    sips -i "\$app/Contents/Resources/$icondest"
+    rm -rf "\$scriptdir"
+fi
+END
+    chmod +x "$app/Icons/finish"
+    open "$app/Icons"
+elif [ -d "$app/Extras" ]; then
+    open "$app/Extras"
+fi
