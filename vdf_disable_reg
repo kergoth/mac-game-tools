@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import acf
 import sys
+import vdf
+
 
 def get_val_nocase(path, acfdata):
     elements = path.split('.')
@@ -18,17 +19,27 @@ def get_val_nocase(path, acfdata):
 
 keys = []
 for fn in sys.argv[1:]:
-    data = acf.parse_acf(fn)
+    with open(fn, 'rU') as f:
+        data = vdf.load(f)
+
     runp = get_val_nocase('installscript.run process', data)
     for name, runpinfo in runp.items():
+        os = get_val_nocase('requirement_os.ostype', runpinfo)
+        if os in ['Windows 8', 'Windows 8.1', 'Windows 10']:
+            # I don't think we care about these for wine
+            continue
+
         key = get_val_nocase('hasrunkey', runpinfo)
         if key:
             key = key.replace('\\\\', '\\')
             keys.append((key, name))
 
-print("REGEDIT4")
-print("")
-for key, name in sorted(keys):
-    print("[{}]".format(key))
-    print('"{}"=dword:00000001'.format(name))
+if keys:
+    print("REGEDIT4")
     print("")
+    for key, name in sorted(keys):
+        print("[{}]".format(key))
+        print('"{}"=dword:00000001'.format(name))
+        print("")
+else:
+    sys.exit(1)
