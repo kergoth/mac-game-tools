@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Take a list of lines from stdin. Filter out the lines which are not also
+# emitted by executing the script specified as $1.
+
+tempfile="$(mktemp -t "${0##*/}.XXXXXX")"
+trap 'rm -f $tempfile' EXIT INT TERM
+
+scriptdir="$(cd "$(dirname "$0")" && pwd)"
+eval '"$@"' >>"$tempfile" || exit 1
+
+while read line; do
+    if ! grep -Fqx "$line" "$tempfile"; then
+        echo "$line"
+    fi
+done

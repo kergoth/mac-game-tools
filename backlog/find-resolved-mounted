@@ -1,0 +1,23 @@
+#!/bin/sh
+
+which aliasPath >/dev/null 2>&1
+aliaspath_check=$?
+
+mdfind -onlyin "$PWD" "kMDItemKind = 'Alias'" "$@" | \
+    grep -v "By Tag" | \
+    while read alias; do
+        resolved="$("$scriptdir/resolve-alias" "$alias" 2>/dev/null)"
+        if [ $? -eq 0 ]; then
+        else
+            if [ $aliaspath_check -eq 0 ]; then
+                alias_path="$(aliasPath "$alias")"
+                root="$(echo "$alias_path" | cut -d/ -f2)"
+                if [ "$root" = "Volumes" ]; then
+                    volume="$(echo "$alias_path" | cut -d/ -f3)"
+                    if [ ! -e "/Volumes/$volume" ]; then
+                        echo "$alias"
+                    fi
+                fi
+            fi
+        fi
+    done

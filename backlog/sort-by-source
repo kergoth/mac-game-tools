@@ -1,0 +1,36 @@
+#!/bin/sh
+
+find 8\ -\ Unsorted -type f | nlxargs ./resolve-alias -o | \
+    while IFS="$(printf '\t')" read link app; do
+        case "$app" in
+            */Games\ -\ Broken/*)
+                dest="7 - Not Playing/Broken, Unplayable"
+                ;;
+            */Games\ -\ Too\ Slow/*)
+                dest="7 - Not Playing/Broken, Unplayable"
+                ;;
+            */Games\ -\ Demos,\ Unreleased/*)
+                dest="7 - Not Playing/Demos, Unreleased"
+                ;;
+            */Games\ -\ Won\'t\ Play/*)
+                dest="7 - Not Playing/Benched - Meh, Crap"
+                ;;
+            */Games\ -\ Kids\ \&\ Education/*)
+                dest="7 - Not Playing/Benched - Kids"
+                ;;
+            */OpenEmu\ Library/*)
+                dest="7 - Not Playing/Emulation"
+                ;;
+            *)
+                if echo "$app" | grep -qwiE 'alpha|beta|demo'; then
+                    dest="7 - Not Playing/Demos, Unreleased"
+                fi
+                ;;
+        esac
+        if [ -n "$dest" ]; then
+            mv -v "$link" "$dest/"
+        else
+            echo >&2 "Unknown: $app"
+        fi
+    done
+rmdir 8\ -\ Unsorted 2>/dev/null || true

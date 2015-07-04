@@ -1,0 +1,23 @@
+#!/bin/sh
+
+scriptdir="$(cd "$(dirname "$0")" && pwd)"
+
+filter_out_other () {
+    #"$scriptdir/filter-out-other" sh -c "mdfind -onlyin \"$scriptdir\" \"kMDItemKind = 'Alias'\" | grep -v 'By Tag' | tr '\n' '\0' | xargs -0 \"$scriptdir/resolve-alias\""
+    "$scriptdir/filter-out-other" sh -c "find \"$scriptdir\"/*/ -type f -not -name .DS_Store | sed 's,//,/,g' | grep -v 'By Tag' | tr '\n' '\0' | xargs -0 \"$scriptdir/resolve-alias\""
+}
+
+existing_aliases="$(mktemp -t "${0##*/}.XXXXXX")"
+trap 'rm -f "$existing_aliases"' EXIT INT TERM
+mdfind -onlyin "$PWD" "kMDItemKind = 'Alias'"|grep -v "/By Tag/"|sed 's,.*/,,'|sort -u >>"$existing_aliases"
+
+mkdir -p "8 - Unsorted"
+cd "8 - Unsorted" >/dev/null || exit 1
+"$scriptdir/existing-games" | filter_out_other | \
+    while read app; do
+        echo "$app"
+        if ! grep -Fxq "${app##*/}" "$existing_aliases"; then
+            mkalias "$app"
+        fi
+    done
+rmdir "8 - Unsorted" 2>/dev/null

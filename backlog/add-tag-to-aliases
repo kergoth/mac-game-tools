@@ -1,0 +1,10 @@
+#!/bin/sh
+
+tag="$1"
+shift
+
+scriptdir="$(dirname "$0")"
+"$scriptdir/resolve-alias" "$@" | while read path; do
+    printf 'Adding tag %s to "%s"\n' "$tag" "$path"
+    tag -s "Game,$tag" "$path"
+done

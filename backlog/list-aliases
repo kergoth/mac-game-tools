@@ -1,0 +1,4 @@
+#!/bin/sh
+
+scriptdir="$(dirname "$0")"
+mdfind -0 -onlyin "$PWD" "kMDItemKind = 'Alias'" "$@" | xargs -0 "$scriptdir/resolve-alias" -o

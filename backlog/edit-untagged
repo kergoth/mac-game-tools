@@ -1,0 +1,30 @@
+#!/bin/sh
+
+tmpfile="$(mktemp -t "${0##*/}.XXXXXX")"
+trap 'rm -f "$tmpfile" "${tmpfile}.new"' EXIT INT TERM
+
+scriptdir="$(dirname "$0")"
+mdfind -onlyin "$PWD/By Tag/_Untagged" "kMDItemKind = 'Alias'" "$@" | while read alias; do
+    resolved="$("$scriptdir/resolve-alias" "$alias" 2>/dev/null)"
+    if [ $? -ne 0 ]; then
+        continue
+    fi
+    tags="$(tag -l "$resolved" | cut -d"$(printf '\t')" -f2)"
+    printf '%s\t%s\n' "$resolved" "$tags"
+done | sort >"$tmpfile"
+
+cp "$tmpfile" "${tmpfile}.new"
+"${VISUAL:-${EDITOR:-vim}}" "${tmpfile}.new"
+
+comm -13 "$tmpfile" "${tmpfile}.new" | \
+    while IFS="$(printf '\t')" read file tags; do
+        case "$file" in
+            \#*)
+                continue
+                ;;
+        esac
+        if [ -e "$file" ] || [ -h "$file" ]; then
+            echo >&2 "Set tags of $file to Game,$tags"
+            tag -s "Game,$tags" "$file"
+        fi
+    done

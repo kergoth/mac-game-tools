@@ -1,0 +1,10 @@
+#!/bin/sh
+cd "$(dirname "$0")"
+./existing-games | while read path; do
+    tags="$(tag -l "$path" | sed -n "s/.*	//p")"
+    if [ -z "$tags" ]; then
+        printf 'Warning: no tags for `%s`, adding `Game` tag\n' "$path" >&2
+        tag -a Game "$path"
+        continue
+    fi
+done

@@ -1,0 +1,48 @@
+#!/bin/sh
+
+scriptdir="$(dirname "$0")"
+excluded_backlog_paths="Unsorted|Not Playing"
+# I only want category tags, not other information
+excluded_tags="Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves"
+
+find_aliases () {
+    find . -type d -depth 1 | grep -Ev "$excluded_backlog_paths" | \
+        while read backlog_dir; do
+            mdfind -onlyin "$backlog_dir" "kMDItemKind = 'Alias'"
+        done
+}
+
+get_included_tags () {
+    tags="$(tag -l "$1" | sed -n "s/.*	//p")"
+    if [ -z "$tags" ]; then
+        printf 'Warning: no tags for "%s", adding "Game" tag\n' "$1" >&2
+        tag -a Game "$1"
+        return 1
+    fi
+    filtered_tags="$(echo "$tags," | tr ',' '\n' | grep -v '^$' | grep -Evx "$excluded_tags" | tr '\n' ',' | sed 's/,$//')"
+    if [ -z "$filtered_tags" ]; then
+        filtered_tags="_Untagged"
+    fi
+    echo "$filtered_tags" | tr ',' '\n'
+}
+
+trash "By Tag" 2>/dev/null || rm -rf "By Tag"
+
+find_aliases | tr '\n' '\0' | xargs -0 "$scriptdir/resolve-alias" -o | \
+    while IFS="$(printf '\t')" read alias_path path; do
+        case "$path" in
+            *.dmg)
+                echo >&2 "Error: resolved to a disk image ($alias_path -> $path)"
+                continue
+                ;;
+            */SteamLibrary/*)
+                echo >&2 "Error: resolved to a steam path ($alias_path -> $path)"
+                continue
+                ;;
+        esac
+
+        get_included_tags "$path" | while read tag; do
+            mkdir -p "By Tag/$tag"
+            cp -av "$alias_path" "By Tag/$tag"
+        done
+    done
