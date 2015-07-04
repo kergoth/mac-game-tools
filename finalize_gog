@@ -1,0 +1,102 @@
+#!/bin/sh
+# - Create support links
+# - Set icon from the galaxy icon
+# - Change the program name & path, and flags, to set up this game to launch
+
+new_webloc () {
+    /usr/libexec/PlistBuddy -c "Add URL string \"$1\"" -x "$2"
+}
+
+create_support_links () {
+    infofile="$1"
+    gamedir="$2"
+    outdir="$3"
+    jq <"$infofile" '.supportTasks[] | select(.type == "URLTask") | .name + "|" + .link' | sed 's,^",,; s,"$,,' | \
+        while IFS="|" read name url; do
+            new_webloc "$url" "$outdir/$name.webloc"
+        done
+    jq <"$infofile" '.supportTasks[] | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | while read path; do
+            ln -sf "../$gamedir/$path" "$outdir/"
+        done
+}
+
+configure_icon () {
+    icon_file="$1"
+    icon_gamedest="$2"
+    icondest="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$icon_gamedest/Contents/Info.plist")"
+    makeicns -in "$icon_file" -out "$icon_gamedest/Contents/Resources/$icondest"
+    sips -i "$icon_gamedest/Contents/Resources/$icondest"
+}
+
+configure_icon_nogalaxy () {
+    icon_game="$1"
+    icon_gamedir="$2"
+
+    mkdir -p "$icon_game/Icons"
+    find "$icon_gamedir/" -name \*.ico | while read ico; do
+        cp "$ico" "$icon_game/Icons"
+    done
+
+    find "$icon_gamedir/" -name \*.exe -print0 | \
+        xargs -0 wrestool -x -t14 -o "$icon_game/Icons" 2>/dev/null || true
+
+    rmdir "$icon_game/Icons" 2>/dev/null || true
+
+    icondest="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$icon_game/Contents/Info.plist")"
+    if [ -d "$icon_game/Icons" ] && [ -n "$icondest" ]; then
+        cat >"$icon_game/Icons/finish" <<END
+#!/bin/sh
+
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
+cd "\$scriptdir"
+if ls *.icns &>/dev/null; then
+    app="\${scriptdir%/*}"
+    icns="\$(find . -iname "*.icns" | head -n 1)"
+    cp "\$icns" "\$app/Contents/Resources/$icondest"
+    sips -i "\$app/Contents/Resources/$icondest"
+    rm -rf "\$scriptdir"
+fi
+END
+        chmod +x "$icon_game/Icons/finish"
+        open "$icon_game/Icons"
+    fi
+}
+
+galaxypath="/Program Files/GalaxyClient/GalaxyClient.exe"
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+if [ $# -eq 0 ]; then
+    echo >&2 "Usage: ${0##*/} GAME_APP"
+    exit 1
+fi
+
+cd "$1"
+game="$PWD"
+gamedir="$(find "drive_c/GOG Games" -depth 1 -type d | head -n 1)"
+rm -f Game
+ln -s "$gamedir" Game
+
+mkdir -p "$game/Extras"
+find "$gamedir" -maxdepth 1 -type f | \
+    grep -Ei '\.(pdf|txt|doc|rtf|html?)$' | \
+    while read doc; do
+        ln -sf "../$doc" "$game/Extras/"
+    done
+
+wine_gamedir="/${gamedir#drive_c/}"
+infofile="$(ls -1 "$gamedir"/*.info 2>/dev/null)"
+if [ $? -eq 0 ]; then
+    create_support_links "$infofile" "$gamedir" "$game/Extras"
+
+    id="$(basename "$infofile" | sed "s,^goggame-,,; s,\.info$,,")"
+    icon="$gamedir/goggame-$id.ico"
+    configure_icon "$icon" "$game"
+    exepath="$(jq '.playTasks[] | select(.isPrimary == true) | .path' "$infofile" | sed 's,^",,; s,"$,,')"
+else
+    configure_icon_nogalaxy "$game" "$gamedir"
+    exepath="$(find "$gamedir" -iname \*.exe | head -n 1 | sed "s,^$gamedir/,,")"
+fi
+/usr/libexec/PlistBuddy -c "Set 'Program Name and Path' '$wine_gamedir/$exepath'" "$game/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set 'Program Flags' ''" "$game/Contents/Info.plist"
+rmdir "$game/Extras" 2>/dev/null || true

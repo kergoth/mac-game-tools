@@ -1,0 +1,137 @@
+#!/bin/sh
+
+set -e
+
+titlecase () {
+    if [ $# -gt 0 ]; then
+        python -c 'import titlecase; import sys; print(titlecase.titlecase(" ".join(sys.argv[1:])))' "$@"
+    else
+        python -c 'import titlecase; import sys; print(titlecase.titlecase(sys.stdin.read().rstrip()))'
+    fi
+}
+
+file_name_adjust () {
+    case "$1" in
+        *.*)
+            base="${1%.*}"
+            ext=".${1##*.}"
+            ;;
+        *)
+            base="$1"
+            ext=""
+    esac
+    echo "$(echo "$base" | tr A-Z a-z | sed "s#${gogdir##*/}_##; s,_, ,g; s,.* wallpaper,wallpaper,; s,.* arts,artwork,; s,.* artworks?,artwork,; s,.* avatars?,avatars,; s,refcard,reference card,; s,artworks,artwork,; s,arts,artwork,; s,wallpapers,wallpaper," | titlecase)$ext"
+}
+
+abspath () {
+    _path="$1"
+    if [ -n "${_path##/*}" ]; then
+        _path="$PWD/$1"
+    fi
+    echo "$_path"
+}
+
+handle_dos () {
+    if ls "$1"/Contents/Resources/*.boxer >/dev/null 2>&1; then
+        cp -a "$1" "${1%.app}.orig.app"
+        dos4gw-to-dos32a "$1/Contents/Resources"/*.boxer
+    fi
+}
+
+trash () {
+    if ! which trash &>/dev/null; then
+        rm -rf "$@"
+    else
+        for arg; do
+            if [ -e "$arg" ]; then
+                command trash "$arg"
+            fi
+        done
+    fi
+}
+
+link_docs () {
+    mkdir -p "$1/Extras"
+    pushd "$1/Extras" >/dev/null
+    for dir in ../Contents/Resources/*.boxer/Doc*/ \
+               ../Contents/Resources/drive_c/GOG\ Games/*/ \
+               ../Contents/Resources/*.boxer/C\ *.harddisk/ \
+               ../Contents/Resources/drive_c/Program\ Files/GOG.com/*/; do
+        if [ -e "$dir" ]; then
+            for path in "$dir"/*.{pdf,txt,doc,rtf,htm}; do
+                if [ -e "$path" ]; then
+                    ln -sf "$path" .
+                fi
+            done
+        fi
+    done
+    if [ -e "../Contents/Resources/documents" ]; then
+        if [ -e Documents ]; then
+            ln -sf "../../Contents/Resources/documents"/* Documents/
+        else
+            ln -sf ../Contents/Resources/documents Documents
+        fi
+    fi
+    popd >/dev/null
+}
+
+process_gogdir () {
+    gogdir="$1"
+    outdir="$2"
+
+    gogfiles_temp="$PWD/$(mktemp -d "${0##*/}.XXXX")"
+    trap "trash \"$gogfiles_temp\"" EXIT INT TERM
+
+    mkdir -p "$outdir"/Extras
+    cd "$outdir"/Extras
+    for zip in "$gogdir"/*.zip; do
+        if [ ! -e "$zip" ]; then
+            continue
+        fi
+
+        case "${zip##*/}" in
+            *soundtrack*|*ost*|*music*)
+                :
+                ;;
+            *)
+                dtrx --one=here "$zip"
+                ;;
+        esac
+    done
+
+    for i in */*.pdf; do
+        if [ -e "$i" ]; then
+            mv "$i" .
+        fi
+    done
+    ls -1 */*.{mp{3,4},mov,avi,mpg,mpeg,flac,epub,mobi} 2>/dev/null | sed 's,\(.*\)/.*,\1,' | sort -u | while read mediadir; do
+        trash "$mediadir"
+    done
+    rmdir */ 2>/dev/null || true
+
+    for i in *; do
+        name="$(file_name_adjust "$i")"
+        if [ "$name" != "$i" ]; then
+            echo >&2 "$i -> $name"
+            mv "$i" "$name"
+        fi
+    done
+    trash *Soundtrack* *Ost*
+
+    cd - >/dev/null
+    rmdir "$outdir"/Extras 2>/dev/null || true
+}
+
+if [ $# -lt 1 ]; then
+    echo >&2 "gog-extract-extras GOGDIR [OUTDIR]"
+    exit 2
+fi
+
+gogdir="$(abspath "${1%/}")"
+if [ $# -lt 2 ]; then
+    outdir="$PWD/${gogdir##*/}"
+else
+    outdir="$(abspath "$2")"
+fi
+
+process_gogdir "$gogdir" "$outdir"
