@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# TODO:
+# - Configure ScummVM wrappers for core/multi_midi & advmame3x/aspectratio
+# - Configure Dosbox games for general midi / roland emulation and gfx filter?
+# - Replace dos4gw with dos32a in Dosbox games
+#
+# TODO - From previous:
+# - Restore Extras
+# - Restore series structure & series level Extras
+
+PATH="$(cd "$(dirname "$0")" && pwd -P)"
+find . -iwholename '*/Contents/Resources/game/configfile' -o -iwholename '*/Contents/Resources/configfile' | tr '\n' '\0' | xargs -0 scummvm_configure
