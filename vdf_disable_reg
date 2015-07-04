@@ -25,10 +25,6 @@ for fn in sys.argv[1:]:
     runp = get_val_nocase('installscript.run process', data)
     for name, runpinfo in runp.items():
         os = get_val_nocase('requirement_os.ostype', runpinfo)
-        if os in ['Windows 8', 'Windows 8.1', 'Windows 10']:
-            # I don't think we care about these for wine
-            continue
-
         key = get_val_nocase('hasrunkey', runpinfo)
         if key:
             key = key.replace('\\\\', '\\')
