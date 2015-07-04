@@ -1,5 +1,10 @@
 #!/bin/sh
 
+find_app_symlinks_resolved () {
+    find "$@" -iname \*.app -prune -type l -print -maxdepth 3 | \
+        tr '\n' '\0' | xargs -0 -n 1 abs_readlink
+}
+
 if [ ! -e /Volumes/My\ Passport ]; then
     echo >&2 "My Passport drive is not mounted, aborting"
     exit 1
@@ -7,8 +12,13 @@ fi
 PATH="${0%/*}:$PATH"
 {
     # mdfind -onlyin '/Volumes/My Passport' -attr kMDItemDisplayName "kMDItemUserTags == \"Game\""|sed 's,^/Volumes/My Passport/,,; s,/.*kMDItemDisplayName = ,/,'
-    find-games | grep -E '/Volumes/(My Passport|Games Archive)/'
-    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type l -print -maxdepth 2 | sed 's,//,/,g'
+    # find-games | grep -E '/Volumes/(My Passport|Games Archive)/'
+    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
+    find_app_symlinks_resolved /Volumes/My\ Passport/Games*/
+    if [ ! -e /Volumes/Games\ Archive ]; then
+        echo >&3 "Warning: Games Archive is not mounted"
+    fi
+    find_app_symlinks_resolved /Volumes/Games\ Archive/Games*/
     find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type l -print -maxdepth 2 | sed 's,//,/,g'
 } | grep -Ev '\.Trashes|Archived|Pending|Backup|Replaced' | \
     tr '\n' '\0' | xargs -0 identify-game-wrapper | sed 's,.unknown$,,' | \
