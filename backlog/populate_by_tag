@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+
+import argparse
+import errno
+import itertools
+import os
+import re
+import signal
+import subprocess
+import sys
+try:
+    import pprintpp as pprint
+except ImportError:
+    import pprint
+from collections import defaultdict
+
+
+def main(cmdline_args):
+    parser = ArgumentParser(description='Update tag-based navigation for games backlog')
+    parser.add_argument('-b', '--backlog-path', metavar='BACKLOG_PATH',
+                        default=os.getcwd(),
+                        help='Path to the backlog (symlink tree, default: $PWD)')
+    parser.add_argument('-x', '--excluded-tags', metavar='REGEX', type=regex,
+                        help='Exclusion pattern for tags (regular expression)')
+    parser.add_argument('-X', '--excluded-link-paths', metavar='REGEX', type=regex,
+                        help='Exclusion pattern for link paths (regular expression)')
+    parser.add_argument('-p', '--tag-tree-path', metavar='PATH',
+                        default='By Tag',
+                        help='Path where the tag symlink tree will be placed')
+    args = parser.parse_args(cmdline_args)
+    args.tag_tree_path = os.path.join(args.backlog_path, args.tag_tree_path)
+
+    backlog_links = {}
+    tagdb_links = defaultdict(list)
+    tagdb = {}
+
+    if os.path.exists(args.tag_tree_path):
+        tag_link_files = find_apps(args.tag_tree_path)
+        for link in tag_link_files:
+            game_name = os.path.basename(link)
+            tag_name = os.path.dirname(os.path.relpath(link, args.tag_tree_path))
+            tagdb_links[game_name].append(tag_name)
+    else:
+        mkdir(args.tag_tree_path)
+
+    mkdir(args.backlog_path)
+    links = find_apps(args.backlog_path)
+    links = filter(lambda l: not l.startswith(args.tag_tree_path + os.sep), links)
+    links = filter(lambda l: os.path.exists(l), links)
+    tag_output = subprocess.check_output(['tag', '-l'] + links)
+    for tag_line in tag_output.splitlines():
+        tag_line = tag_line.rstrip()
+        try:
+            link, tags = tag_line.split('\t', 1)
+        except ValueError:
+            tags = ""
+        link = link.rstrip()
+        if args.excluded_link_paths and args.excluded_link_paths.match(link):
+            continue
+
+        tag_list = tags.split(',')
+        if args.excluded_tags:
+            tag_list = filter(lambda t: not args.excluded_tags.match(t),
+                              tag_list)
+        game_name = os.path.basename(link)
+        tagdb[game_name] = tag_list or ['_Untagged']
+        backlog_links[game_name] = link
+
+    in_by_tag = set(tagdb_links)
+    in_backlog = set(backlog_links)
+    in_by_tag_only = in_by_tag - in_backlog
+    for game_name in in_by_tag_only:
+        for tag in tagdb_links[game_name]:
+            os.unlink(os.path.join(args.tag_tree_path, tag, game_name))
+
+    for tag in set(itertools.chain(*tagdb.itervalues())):
+        mkdir(os.path.join(args.tag_tree_path, tag))
+
+    for game_name, tags in tagdb.iteritems():
+        tags = set(tags)
+        link_path = backlog_links[game_name]
+        if game_name in tagdb_links:
+            old_tags = set(tagdb_links[game_name])
+        else:
+            old_tags = set()
+
+        if tags != old_tags:
+            in_old_only = old_tags - tags
+            for tag in in_old_only:
+                os.unlink(os.path.join(args.tag_tree_path, tag, game_name))
+
+            in_current_only = tags - old_tags
+            for tag in in_current_only:
+                os.symlink(os.readlink(link_path), os.path.join(args.tag_tree_path, tag, game_name))
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        """Overridden method to show long help for no arguments"""
+        if message == 'too few arguments':
+            self.print_help(sys.stderr)
+        else:
+            self.print_usage(sys.stderr)
+        self.exit(2, '%s: error: %s\n' % (self.prog, message))
+
+
+def regex(string, flags=0):
+    try:
+        return re.compile(string, flags)
+    except re.error as exc:
+        raise argparse.ArgumentTypeError('Invalid regular expression {0!r}: {1}'.format(string, exc))
+
+
+def p(*args):
+    if len(args) > 1:
+        pprint.pprint(args)
+    else:
+        pprint.pprint(args[0])
+
+
+def find_apps(directory, excluded=None):
+    for root, dirs, files in os.walk(directory, topdown=True):
+        newdirs = []
+        for directory in dirs:
+            fulldir = os.path.join(root, directory)
+            if not excluded or not excluded.match(fulldir):
+                newdirs.append(fulldir)
+
+        for appname in filter(lambda f: f.endswith('.app'), newdirs + files):
+            fullpath = os.path.join(root, appname)
+            yield fullpath
+        newdirs = filter(lambda d: not d.endswith('.app'), newdirs)
+        dirs[:] = newdirs
+
+
+def find_dirs(dir, **walkoptions):
+    for root, dirs, files in os.walk(dir, **walkoptions):
+        for _dir in dirs:
+            yield os.path.join(root, _dir)
+
+
+def get_games_by_name(game_paths):
+    games_by_name = {}
+    game_paths = list(game_paths)
+    if game_paths:
+        try:
+            game_names_txt = subprocess.check_output(["mdls", "-name", "kMDItemDisplayName", "-raw"] + game_paths, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as exc:
+            sys.stderr.write("Warning: mdls failed: {0}:\n{1}".format(exc, exc.output))
+            for path in game_paths:
+                games_by_name[os.path.basename(path)] = path
+            return
+
+        game_names = game_names_txt.split('\0')
+        for pos, game_path in enumerate(game_paths):
+            name = game_names[pos]
+            if name:
+                if not name.endswith('.app'):
+                    name = name + '.app'
+            else:
+                name = os.path.basename(game_path)
+            games_by_name[name] = game_path
+    return games_by_name
+
+
+def mkdir(directory):
+    try:
+        os.makedirs(directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+
+class Terminate(BaseException):
+    pass
+
+
+def sigterm_exception(signum, stackframe):
+    raise Terminate()
+
+
+def run_main(mainfunc, args):
+    signal.signal(signal.SIGTERM, sigterm_exception)
+    try:
+        return mainfunc(args)
+    except KeyboardInterrupt:
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGINT)
+    except Terminate:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+
+if __name__ == '__main__':
+    sys.exit(run_main(main, sys.argv[1:]) or 0)

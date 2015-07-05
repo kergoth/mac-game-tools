@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+
+import errno
+import os
+
+
+def find_apps(directory, excluded=None):
+    for root, dirs, files in os.walk(directory, topdown=True):
+        newdirs = []
+        for directory in dirs:
+            fulldir = os.path.join(root, directory)
+            if not excluded or not excluded.match(fulldir):
+                newdirs.append(fulldir)
+
+        for appname in filter(lambda f: f.endswith('.app'), newdirs + files):
+            fullpath = os.path.join(root, appname)
+            yield fullpath
+        newdirs = filter(lambda d: not d.endswith('.app'), newdirs)
+        dirs[:] = newdirs
+
+
+def find(dir, **walkoptions):
+    for root, dirs, files in os.walk(dir, **walkoptions):
+        for file in files:
+            yield os.path.join(root, file)
+
+
+def mkdir(directory):
+    try:
+        os.makedirs(directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+
+old_apps = find('/Volumes/My Passport/Games Backlog')
+old_by_name = dict((os.path.basename(a), a) for a in old_apps)
+new_apps = find_apps(os.getcwd())
+new_by_name = dict((os.path.splitext(os.path.basename(a))[0], a) for a in new_apps)
+
+in_both = set(old_by_name) & set(new_by_name)
+for game in in_both:
+    rel_old = old_by_name[game].replace('/Volumes/My Passport/Games Backlog/', '') + '.app'
+    rel_new = new_by_name[game].replace(os.getcwd() + os.sep, '')
+    old_dest = os.path.dirname(rel_old)
+    new_dest = os.path.dirname(rel_new)
+    if old_dest != new_dest:
+        mkdir(old_dest)
+        print('{0!r} -> {1!r}'.format(rel_new, rel_old))
+        os.rename(rel_new, rel_old)

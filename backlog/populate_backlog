@@ -1,0 +1,225 @@
+#!/usr/bin/env python
+
+import argparse
+import errno
+import os
+import re
+import signal
+import subprocess
+import sys
+try:
+    import pprintpp as pprint
+except ImportError:
+    import pprint
+
+
+def main(cmdline_args):
+    parser = ArgumentParser(description='Update games backlog')
+    parser.add_argument('-b', '--backlog-path', metavar='BACKLOG_PATH',
+                        default=os.getcwd(),
+                        help='Path to the backlog (symlink tree, default: $PWD)')
+    parser.add_argument('-u', '--unsorted-dir', metavar='PATH',
+                        default='8 - Unsorted',
+                        help='Directory name for unsorted games in the backlog (default: "8 - Unsorted")')
+    parser.add_argument('paths', metavar='PATH', nargs='+',
+                        help='Paths to search for games')
+    parser.add_argument('-x', '--excluded', metavar='REGEX', type=regex,
+                        help='Exclusion pattern (regular expression)')
+    parser.add_argument('-a', '--auto-scheme', metavar='SCHEME', dest='auto_schemes',
+                        action='append', type=auto_scheme_nocase,
+                        help='Specify automatic organization by source path. '
+                             'Cumulative (each -a adds to the list of schemes). '
+                             'Passing the empty string will reset the schemes '
+                             'up to that point. #-separated '
+                             '(ex. ".*/Broken/#7 - Not Playing/Broken, Unplayable")')
+    args = parser.parse_args(cmdline_args)
+
+    # FIXME: check for games which are in multiple locations: either weight
+    # them, or skip & warn on those
+    game_paths = []
+    for directory in args.paths:
+        game_paths.extend(find_apps(directory, excluded=args.excluded))
+
+    link_games_paths, name_games_paths = [], []
+    for p in game_paths:
+        if os.path.islink(p):
+            link_games_paths.append(p)
+        else:
+            name_games_paths.append(p)
+
+    games_by_name = get_games_by_name(name_games_paths)
+    for l in link_games_paths:
+        games_by_name[os.path.basename(l)] = l
+
+    backlog_games = find_apps(args.backlog_path)
+    backlog_by_name = dict((os.path.basename(a), a) for a in backlog_games)
+
+    in_game_dirs = set(games_by_name)
+    in_backlog = set(backlog_by_name)
+    actions = []
+
+    in_both = in_game_dirs & in_backlog
+    for game in in_both:
+        game_path = games_by_name[game]
+        link_path = backlog_by_name[game]
+        old_game_path = os.readlink(link_path)
+        old_dest = os.path.dirname(link_path.replace(args.backlog_path + os.sep, ''))
+        dest = get_link_destination(game_path, args.unsorted_dir, args.auto_schemes)
+        if dest == args.unsorted_dir:
+            dest = old_dest
+        if old_game_path != game_path or old_dest != dest:
+            actions.append((link_path, old_game_path, os.path.join(dest, game), game_path))
+
+    in_backlog_only = in_backlog - in_game_dirs
+    for game in in_backlog_only:
+        link_path = backlog_by_name[game]
+        actions.append((link_path, None, None, None))
+
+    in_game_dirs_only = in_game_dirs - in_backlog
+    for game in in_game_dirs_only:
+        game_path = games_by_name[game]
+        destination = get_link_destination(game_path, args.unsorted_dir,
+                                           args.auto_schemes)
+        link_path = os.path.join(destination, game)
+        actions.append((None, None, link_path, game_path))
+
+    for to_remove, remove_dest, to_add, add_dest in actions:
+        if to_remove:
+            _remove_dest = os.readlink(to_remove)
+            if not to_add and _remove_dest.startswith('/Volumes/'):
+                volume = os.sep.join(_remove_dest.split(os.sep, 2))
+                # Unmounted volume, don't remove
+                if not os.path.exists(volume):
+                    continue
+
+            p_to_remove = to_remove.replace(args.backlog_path + os.sep, '')
+            if remove_dest and to_add and remove_dest != add_dest:
+                # We only need to see the old dest if we're re-creating the
+                # link and the destination of the link has changed, not the
+                # link location.
+                print('-{0} -> {1}'.format(p_to_remove, remove_dest))
+            else:
+                print('-{0}'.format(p_to_remove))
+            os.unlink(to_remove)
+        if to_add:
+            p_to_add = to_add.replace(args.backlog_path + os.sep, '')
+            print('+{0} -> {1}'.format(p_to_add, add_dest))
+            mkdir(os.path.dirname(to_add))
+            os.symlink(add_dest, to_add)
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        """Overridden method to show long help for no arguments"""
+        if message == 'too few arguments':
+            self.print_help(sys.stderr)
+        else:
+            self.print_usage(sys.stderr)
+        self.exit(2, '%s: error: %s\n' % (self.prog, message))
+
+
+def regex(string, flags=0):
+    try:
+        return re.compile(string, flags)
+    except re.error as exc:
+        raise argparse.ArgumentTypeError('Invalid regular expression {0!r}: {1}'.format(string, exc))
+
+
+def auto_scheme_nocase(string):
+    try:
+        regex, destdir = string.rsplit('#', 1)
+    except ValueError:
+        raise argparse.ArgumentTypeError('Invalid scheme format for {0!r}: Expected: <regex>|<destdir>'.format(string))
+
+    try:
+        pattern = re.compile(regex, re.IGNORECASE)
+    except re.error as exc:
+        raise argparse.ArgumentTypeError('Invalid scheme format for {0!r}: {1}. Expected: <regex>|<destdir>'.format(string, exc))
+    return pattern, destdir
+
+
+def p(*args):
+    if len(args) > 1:
+        pprint.pprint(args)
+    else:
+        pprint.pprint(args[0])
+
+
+def find_apps(directory, excluded=None):
+    for root, dirs, files in os.walk(directory, topdown=True):
+        newdirs = []
+        for directory in dirs:
+            fulldir = os.path.join(root, directory)
+            if not excluded or not excluded.match(fulldir):
+                newdirs.append(fulldir)
+
+        for appname in filter(lambda f: f.endswith('.app'), newdirs + files):
+            fullpath = os.path.join(root, appname)
+            yield fullpath
+        newdirs = filter(lambda d: not d.endswith('.app'), newdirs)
+        dirs[:] = newdirs
+
+
+def get_games_by_name(game_paths):
+    games_by_name = {}
+    game_paths = list(game_paths)
+    if game_paths:
+        try:
+            game_names_txt = subprocess.check_output(["mdls", "-name", "kMDItemDisplayName", "-raw"] + game_paths, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as exc:
+            sys.stderr.write("Warning: mdls failed: {0}:\n{1}".format(exc, exc.output))
+            for path in game_paths:
+                games_by_name[os.path.basename(path)] = path
+            return
+
+        game_names = game_names_txt.split('\0')
+        for pos, game_path in enumerate(game_paths):
+            name = game_names[pos]
+            if name:
+                if not name.endswith('.app'):
+                    name = name + '.app'
+            else:
+                name = os.path.basename(game_path)
+            games_by_name[name] = game_path
+    return games_by_name
+
+
+def mkdir(directory):
+    try:
+        os.makedirs(directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+
+def get_link_destination(game_path, defaultdest=None, auto_schemes=None):
+    if auto_schemes:
+        for pattern, dest in auto_schemes:
+            if pattern.match(game_path):
+                return dest
+
+    return defaultdest
+
+
+class Terminate(BaseException):
+    pass
+
+
+def sigterm_exception(signum, stackframe):
+    raise Terminate()
+
+
+def run_main(mainfunc, args):
+    signal.signal(signal.SIGTERM, sigterm_exception)
+    try:
+        return mainfunc(args)
+    except KeyboardInterrupt:
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGINT)
+    except Terminate:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+
+if __name__ == '__main__':
+    sys.exit(run_main(main, sys.argv[1:]) or 0)

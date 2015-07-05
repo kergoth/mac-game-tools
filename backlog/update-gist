@@ -4,7 +4,7 @@ tmpfile="$(mktemp -t ${0##*/}.XXXXXX)"
 trap "rm -f \"$tmpfile\"" EXIT INT TERM
 
 cd "$(dirname "$0")"
-ls -d [0-9]*/ | grep -v 'Unsorted' | sort -n | tr '\n' '\0' | xargs -0 -n 1 lstree >>"$tmpfile" || exit 1
+ls -d [0-9]*/ | grep -v 'Unsorted' | sort -n | tr '\n' '\0' | xargs -0 -n 1 lstree | sed 's,\.app$,,' >>"$tmpfile" || exit 1
 
 curl -s https://gist.githubusercontent.com/kergoth/4a96c92d64948d52a468/raw/games-backlog.txt | diff -urNd - "$tmpfile"
 if [ $? -ne 0 ] && [ "$1" != "-n" ]; then

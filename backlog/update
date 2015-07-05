@@ -1,0 +1,29 @@
+#!/bin/sh
+
+excluded_games='.*(Setup|Launcher|-64|Editor|(((/Original)|Pending|Utilities|Obsolete|Replaced|Archived.*)/))'
+excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves|Saved Games in Wrapper$'
+excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
+
+scriptdir="$(dirname "$0")"
+set -- \
+    -x "$excluded_games" \
+    \
+    -u '8 - Unsorted' \
+    -a '.*(Broken|Not Playing)/#7 - Not Playing/Broken, Unplayable' \
+    -a '.*Nostalgia/#7 - Not Playing/Benched - Nostalgia, Old' \
+    -a ".*Won't Play#7 - Not Playing/Benched - Meh, Crap" \
+    -a '.*Kids & Education#7 - Not Playing/Benched - Kids' \
+    -a '.*/OpenEmu Library/#7 - Not Playing/Emulation' \
+    -a '.*Demos#7 - Not Playing/Demos, Unreleased' \
+    -a 'alpha|beta|demo#7 - Not Playing/Demos, Unreleased' \
+    \
+    "/Volumes/My Passport/Games" \
+    "/Volumes/My Passport/Games - Nostalgia" \
+    "/Volumes/My Passport/OpenEmu Library" \
+    \
+    "/Volumes/Games Archive"
+
+"$scriptdir/populate_backlog" "$@"
+rmdir "8 - Unsorted" 2>/dev/null
+"$scriptdir/populate_by_tag" -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
+"$scriptdir/update-gist"
