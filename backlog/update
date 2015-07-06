@@ -5,6 +5,7 @@ excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To P
 excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
 
 scriptdir="$(dirname "$0")"
+cd "$scriptdir"
 set -- \
     -x "$excluded_games" \
     \
