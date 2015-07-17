@@ -87,7 +87,7 @@ def main(cmdline_args):
         if to_remove:
             _remove_dest = os.readlink(to_remove)
             if not to_add and _remove_dest.startswith('/Volumes/'):
-                volume = os.sep.join(_remove_dest.split(os.sep, 2))
+                volume = os.sep.join(_remove_dest.split(os.sep, 3)[:3])
                 # Unmounted volume, don't remove
                 if not os.path.exists(volume):
                     continue
