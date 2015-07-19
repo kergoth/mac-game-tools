@@ -29,6 +29,12 @@ for fn in sys.argv[1:]:
         if key:
             key = key.replace('\\\\', '\\')
             keys.append((key, name))
+        else:
+            sys.stderr.write("Warning: no run key for %s" % name)
+            proc = get_val_nocase('process 1', runpinfo)
+            if proc:
+                sys.stderr.write(": %s" % proc)
+            sys.stderr.write("\n")
 
 if keys:
     print("REGEDIT4")
