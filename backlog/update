@@ -10,7 +10,7 @@ set -- \
     -x "$excluded_games" \
     \
     -u '8 - Unsorted' \
-    -a '.*(Broken|Not Playing)/#7 - Not Playing/Broken, Unplayable' \
+    -a '.*(Broken|Unplayable)/#7 - Not Playing/Broken, Unplayable' \
     -a '.*Nostalgia/#7 - Not Playing/Benched - Nostalgia, Old' \
     -a ".*Won't Play#7 - Not Playing/Benched - Meh, Crap" \
     -a '.*Kids & Education#7 - Not Playing/Benched - Kids' \
@@ -27,4 +27,3 @@ set -- \
 "$scriptdir/populate_backlog" "$@"
 rmdir "8 - Unsorted" 2>/dev/null
 "$scriptdir/populate_by_tag" -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
-"$scriptdir/update-gist"
