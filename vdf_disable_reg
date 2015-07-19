@@ -27,8 +27,9 @@ for fn in sys.argv[1:]:
         os = get_val_nocase('requirement_os.ostype', runpinfo)
         key = get_val_nocase('hasrunkey', runpinfo)
         if key:
+            value = get_val_nocase('minimumhasrunvalue', runpinfo) or 1
             key = key.replace('\\\\', '\\')
-            keys.append((key, name))
+            keys.append((key, name, int(value)))
         else:
             sys.stderr.write("Warning: no run key for %s" % name)
             proc = get_val_nocase('process 1', runpinfo)
@@ -39,9 +40,9 @@ for fn in sys.argv[1:]:
 if keys:
     print("REGEDIT4")
     print("")
-    for key, name in sorted(keys):
+    for key, name, value in sorted(keys):
         print("[{}]".format(key))
-        print('"{}"=dword:00000001'.format(name))
+        print('"{}"=dword:{:08x}'.format(name, value))
         print("")
 else:
     sys.exit(1)
