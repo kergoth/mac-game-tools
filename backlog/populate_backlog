@@ -149,11 +149,13 @@ def find_apps(directory, excluded=None):
     for root, dirs, files in os.walk(directory, topdown=True):
         newdirs = []
         for directory in dirs:
+            if directory.startswith('.'):
+                continue
             fulldir = os.path.join(root, directory)
             if not excluded or not excluded.match(fulldir):
                 newdirs.append(fulldir)
 
-        for appname in filter(lambda f: f.endswith('.app'), newdirs + files):
+        for appname in filter(lambda f: f.endswith('.app') and not f.startswith('.'), newdirs + files):
             fullpath = os.path.join(root, appname)
             yield fullpath
         newdirs = filter(lambda d: not d.endswith('.app'), newdirs)
