@@ -123,8 +123,8 @@ process_gogdir () {
             hdiutil detach "$mountpath"
         done
     else
-        cp -a "$gogdir"/*.exe "$outdir"/
-        cp -a "$gogdir"/*.bin "$outdir"/ 2>/dev/null || true
+        ln -sf "$gogdir"/*.exe "$outdir"/
+        ln -sf "$gogdir"/*.bin "$outdir"/ 2>/dev/null || true
     fi
 
     mkdir -p "$outdir"/Extras
