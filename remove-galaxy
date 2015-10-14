@@ -1,0 +1,21 @@
+#!/bin/sh
+
+
+pkill -f GalaxyClient
+
+for agent in /Library/LaunchAgents/com.gog.galaxy.commservice.plist \
+             /Library/LaunchDaemons/com.gog.galaxy.clientservice.plist \
+             /Library/LaunchDaemons/com.gog.galaxy.service.plist; do
+    launchctl stop "$agent"
+    launchctl unload "$agent"
+done
+
+trash -v  ~/Library/Preferences/com.gog.galaxy.plist \
+          ~/Library/Application\ Support/CrashReporter/GalaxyClient_* \
+          ~/Library/Saved\ Application\ State/com.gog.galaxy.savedState \
+          /Library/LaunchAgents/com.gog.galaxy.commservice.plist \
+          /Library/LaunchDaemons/com.gog.galaxy.clientservice.plist \
+          /Library/LaunchDaemons/com.gog.galaxy.service.plist \
+          /Users/Shared/GOG.com/Galaxy \
+          /Users/Shared/Galaxy \
+          /Applications/GalaxyClient.app
