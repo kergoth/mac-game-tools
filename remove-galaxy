@@ -10,6 +10,7 @@ for agent in /Library/LaunchAgents/com.gog.galaxy.commservice.plist \
     launchctl unload "$agent"
 done
 
+brew cask uninstall gog-galaxy
 trash -v  ~/Library/Preferences/com.gog.galaxy.plist \
           ~/Library/Application\ Support/CrashReporter/GalaxyClient_* \
           ~/Library/Saved\ Application\ State/com.gog.galaxy.savedState \
