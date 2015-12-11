@@ -47,6 +47,10 @@ gather_gamedirs () {
                 gamedir="${gamedir#*/}"
                 echo "$drive/Program Files/${gamedir%%/*}"
                 ;;
+            "GOG Games/"*)
+                gamedir="${gamedir#*/}"
+                echo "$drive/GOG Games/${gamedir%%/*}"
+                ;;
             *)
                 echo "$drive/${gamedir%/*}"
                 ;;
