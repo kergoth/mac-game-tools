@@ -5,7 +5,7 @@ identify_game_wrapper () {
 
     if [ -h "$game" ]; then
         game="$(readlink "$game")"
-        if [ -n "${game#/*}" ]; then
+        if [ -n "${game##/*}" ]; then
             # Relative link
             game="$(dirname "$1")/$game"
         fi
