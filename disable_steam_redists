@@ -14,6 +14,6 @@ sed -n -e 's/^Warning: no run key for .*: %INSTALLDIR%\\\\//p' "$norunkeyfile" |
         mv -v "$path" "$path.orig"
     fi
 done
-if [ ! -s "$game/disable_redist.reg" ]; then
+if [ $(wc -l <"$game/disable_redist.reg") -eq 0 ]; then
     rm -f "$game/disable_redist.reg"
 fi
