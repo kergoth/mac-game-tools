@@ -1,0 +1,378 @@
+#!/bin/sh
+#
+# TODO: consider symlinking the icon rather than copying
+# TODO: obey goggame-*.info for the dosbox launcher configurations
+# TODO: populate BXHelpLinks with links from the goggame info
+
+set -e
+
+usage () {
+    echo >&2 "${0##*/} [OPTIONS] GAME [GAME_TYPE]"
+    echo >&2
+    echo >&2 "GAME may be a game .app, if a Game symlink inside it points to"
+    echo >&2 "the game data directory, otherwise it must be the path to the"
+    echo >&2 "game data directory inside the .app."
+    echo >&2
+    echo >&2 "GAME_TYPE is optional. Ex 'scummvm', 'dosbox'."
+    echo >&2
+    echo >&2 "Options:"
+    echo >&2
+    echo >&2 "  -s scummvm_game_id  Specify ScummVM game ID for the scummvm type"
+    echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name."
+    echo >&2
+    echo >&2 "Ex:"
+    echo >&2
+    echo >&2 "  ${0##*/} \"Some Game.app\""
+    echo >&2 "  ${0##*/} \"Some Game.app/drive_c/Program Files/Some Game\""
+    exit 2
+}
+
+process_arguments () {
+    scummvm_game_id=
+    copy_wrapper=0
+    while getopts s:ch opt; do
+        case "$opt" in
+            s)
+                scummvm_game_id="$OPTARG"
+                ;;
+            c)
+                copy_wrapper=1
+                ;;
+            \?|h)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+        usage
+    fi
+
+    game="${1%/}"
+    game_type="$2"
+    game_base="${game##*/}"
+
+    if [ -e "$game/Contents/Resources/$game_base" ]; then
+        echo >&2 "Error: $game is already wrapped native"
+        exit 1
+    fi
+
+    case "$game" in
+        *.app)
+            if [ -d "$game/Game" ]; then
+                game_dir="$game/$(readlink "$game/Game")"
+            else
+                usage
+            fi
+            ;;
+        *.app/*)
+            game_dir="$game"
+            game="${game%.app/*}.app"
+            game_base="${game##*/}"
+            ;;
+        *)
+            usage
+            ;;
+    esac
+    game_name="${game_base%.app}"
+}
+
+plist_set () {
+    pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+}
+
+pb () {
+    PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
+game_type_from_dir () {
+    if [ -n "$(find "$1"/ -iname dosbox.exe)" ]; then
+        echo dosbox
+    elif [ -n "$(find "$1"/ -iname scummvm.exe)" ]; then
+        echo scummvm
+    fi
+}
+
+adjust_identifier () {
+    printf "%s\n" "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' _
+}
+
+wrap_app () {
+    if [ $copy_wrapper -eq 1 ]; then
+        wrap-app -n "$@"
+        cp -a "$1" "$2/Contents/Resources/"
+    else
+        wrap-app "$@"
+    fi
+}
+
+# Replace supplementary app symlinks with wrappers
+create_extra_app_wrappers () {
+    find "$1" -type l -mindepth 1 -maxdepth 1 -iname \*.app | grep -v Wineskin | \
+        while read extra_app; do
+            extra_app="${extra_app#$1/}"
+            new_app="$1/${extra_app%.app}.new.app"
+            new-app -V GOG -I "org.kergoth.wrapper.$(adjust_identifier "${extra_app%.app}")" "${new_app%.app}"
+            cat >"$new_app/Contents/MacOS/app" <<END
+#!/bin/sh
+
+(
+    tempdir="\$(mktemp -d -t "\${0##*/}.XXXXXX")"
+    trap 'rm -rf "\$tempdir"' EXIT INT TERM
+    wrapperdir="\$(cd "\$(dirname "\$0")/../../.." && pwd)"
+    ln -s "\$wrapperdir/Contents/Resources/$game_base" "\$tempdir/"
+    open -W "\$tempdir/$game_base/$extra_app" --args "\$@"
+) &
+END
+            chmod +x "$new_app/Contents/MacOS/app"
+            copymacicon "$1/$extra_app" "$new_app"
+            rm -f "$1/$extra_app"
+            mv "$new_app" "$1/$extra_app"
+        done
+}
+
+create_dosbox_wrapper () {
+    destdir="$1"
+    boxer="$destdir/Contents/Resources/$game_name.boxer"
+    wrapper_template="$scriptdir/Boxer Standalone.app"
+    identifier="org.kergoth.gog.boxer.$(adjust_identifier "$game_name")"
+
+    cp -a "$wrapper_template/." "$destdir/"
+    sed -i.bak -Ee "s/{{GAMEBOX_NAME}}/$game_name.boxer/; s/{{ORGANIZATION_NAME}}/kergoth@gmail.com/; s/{{ORGANIZATION_URL}}/mailto:kergoth@gmail.com/; s/{{BUNDLE_IDENTIFIER}}/$identifier/g; s/{{APPLICATION_NAME}}/$game_name/; s/{{YEAR}}/$(date +%Y)/;" "$destdir/Contents/Info.plist"
+    rm -f "$destdir/Contents/Info.plist.bak"
+
+    wrap_app "$game" "$destdir"
+    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
+        echo >&2 "Game doesn't exist in $destdir, aborting"
+        exit 12
+    fi
+    plist_set CFBundleIdentifier "org.kergoth.gog.boxer.$(adjust_identifier "$game_name")" "$destdir/Contents/Info.plist"
+
+    newgame="$destdir/Contents/Resources/$game_base"
+    newgamedir="$(cd "$newgame/${game_dir#$game/}" && pwd -P)"
+    game_dir="$newgamedir"
+
+    create_boxer "$boxer"
+
+    mv "$newgamedir" "$boxer/C.harddisk"
+    lnr "$boxer/C.harddisk" "$newgamedir"
+    find "$boxer/C.harddisk/" -iname \*.pdf | while read pdf; do
+        lnr "$pdf" "$boxer/Documentation/${pdf##*/}"
+    done
+}
+
+boxer_identifier_prefix=com.kergoth.boxer
+scummvm_identifier_prefix=com.kergoth.scummvm
+create_boxer () {
+    boxer="$1"
+    mkdir -p "$boxer"
+    mkdir -p "$boxer/Documentation"
+
+    pb -c "Add BXGameIdentifier string $identifier" "$boxer/Game Info.plist"
+    pb -c "Add BXGameIdentifierType integer 3" "$boxer/Game Info.plist"
+    pb -c "Add BXLaunchers array" "$boxer/Game Info.plist"
+
+    # If there's one dosbox*.conf, use it.
+    # If there's multiple with autoexec directives, create bxlauncher
+    # configurations for each.
+    # If there's multiple and one is _single.conf, make it default
+    # If there's one dosbox .conf without autoexec, concatenate it to the
+    # others, as it has the generic configuration
+    find "$game_dir/" -iname dosbox\*.conf >"$boxer.dosboxes"
+    if [ $(wc -l <"$boxer.dosboxes") -eq 0 ]; then
+        echo >&2 "Error: no dosbox configuration found, aborting"
+        return 1
+    elif [ $(wc -l <"$boxer.dosboxes") -eq 0 ]; then
+        echo >&2 "One dosbox configuration found, using it"
+    fi
+
+    cat <<END >"$boxer/exec.sed"
+/^\[autoexec\]/{
+:s
+n
+/^mount C/b s
+p
+b s
+}
+END
+
+    no_autoexecs=
+    autoexecs=
+    while read conf; do
+        conf="${conf#$game_dir/}"
+        conf="${conf#/}"
+        if grep -q '^\[autoexec\]' "$game_dir/$conf"; then
+            autoexecs="$autoexecs $conf"
+            echo >&2 "Autoexec conf: $conf"
+        else
+            no_autoexecs="$no_autoexecs $conf"
+            echo >&2 "No autoexec conf: $conf"
+        fi
+    done <"$boxer.dosboxes"
+    rm -f "$boxer.dosboxes"
+
+    if [ -n "$no_autoexecs" ]; then
+        >"$boxer/DOSBox Preferences.conf"
+        for noauto in $no_autoexecs; do
+            cat "$game_dir/$noauto" >>"$boxer/DOSBox Preferences.conf"
+        done
+    fi
+
+    prefix="$(common_prefix $autoexecs)"
+    count=0
+    for autoexec_conf in $autoexecs; do
+        if [ $(echo $autoexecs | wc -w) -eq 1 ]; then
+            name=
+            launch="bxlaunch.bat"
+            title="$game_name"
+        else
+            name="$autoexec_conf"
+            if [ -n "$prefix" ]; then
+                name="${name#$prefix}"
+            fi
+            name="${name##*/}"
+            name="${name%.conf}"
+            name="${name#dosbox}"
+            name="${name#_}"
+            launch="bxlaunch_$name.bat"
+            title="$game_name ($name)"
+        fi
+
+        sed -ne '/^\[autoexec\]/q; p' "$game_dir/$autoexec_conf" >>"$boxer/DOSBox Preferences.conf"
+
+        pb -c "Add BXLaunchers:$count dict" "$boxer/Game Info.plist"
+        pb -c "Add BXLaunchers:$count:BXLauncherPath string C.harddisk/$launch" "$boxer/Game Info.plist"
+        pb -c "Add BXLaunchers:$count:BXLauncherTitle string '$(pb_escape_value "$title")'" "$boxer/Game Info.plist"
+
+        conf_dir="$(dirname "$autoexec_conf")"
+        >"$game_dir/$launch"
+        if [ -n "$conf_dir" ] && [ "$conf_dir" != . ]; then
+            echo "cd $conf_dir" >>"$game_dir/$launch"
+        fi
+        sed -n -f "$boxer/exec.sed" "$game_dir/$autoexec_conf" >>"$game_dir/$launch"
+
+        count="$(($count + 1))"
+    done
+    rm -f "$boxer/exec.sed"
+}
+
+common_prefix () {
+    python -c "import os, sys; print(os.path.commonprefix(sys.argv[1:]))" "$@"
+}
+
+relpath () {
+    python -c "import os, sys; print(os.path.relpath(*sys.argv[1:]))" "$@"
+}
+
+create_scummvm_wrapper () {
+    destdir="$1"
+
+    if [ -z "$scummvm_game_id" ]; then
+        echo >&2 "Error: unknown scummvm game id, please specify"
+        return 1
+    fi
+
+    cp -a "$scummvm_wrapper_template/." "$destdir/"
+
+    wrap_app "$game" "$destdir"
+    plist_set CFBundleIdentifier "org.kergoth.gog.scummvm.$(adjust_identifier "$game_name")" "$destdir/Contents/Info.plist"
+    plist_set CFBundleName "$scummvm_game_id" "$destdir/Contents/Info.plist"
+
+    rm -rf "$destdir/Contents/Resources/game"
+    ln -s "$game_base/Game" "$destdir/Contents/Resources/game"
+}
+
+get_scummvm_game_id () {
+    _game="$1"
+    _directory="$2"
+    scummvm_game_id_name="$(echo "$_game" | sed 's/ - /: /')"
+    scummvm_game_id="$(sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p" "$scummvm_wrapper_template/Contents/Resources/GameIDs.txt")" || true
+    if [ -z "$scummvm_game_id" ]; then
+        vol=$(find "$_directory/" -iname object -maxdepth 1)
+        if [ -e "$vol" ]; then
+            echo >&2 "Assuming AGI engine"
+            scummvm_game_id=agi
+        fi
+
+        resource=$(find "$_directory/" -iname "resource.map" -maxdepth 1)
+        if [ -e "$resource" ]; then
+            echo >&2 "Assuming SCI engine"
+            scummvm_game_id=sci
+        fi
+
+        mapped=$(scummvm_game_id_map | sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p")
+        if [ -n "$mapped" ]; then
+            scummvm_game_id=$mapped
+        fi
+
+        scummvm_game_id="$("$scummvm_wrapper_template/Contents/MacOS/scummvm" -z | tail -n +3 | sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p")"
+        if [ -z "$scummvm_game_id" ]; then
+            echo >&2 "Error: unknown game ID for $_game, aborting"
+            return 1
+        fi
+    fi
+    echo $scummvm_game_id
+}
+
+scummvm_game_id_map () {
+    cat <<END
+t7g     The 7th Guest
+rtz-cd  Return to Zork
+END
+#dreamweb-cd-us Dreamweb
+}
+
+
+scriptdir="$(cd "$(dirname "$0")" && pwd)"
+scummvm_wrapper_template="$scriptdir/ScummVMWrapper.app"
+PATH="$scriptdir:$PATH:/usr/libexec"
+
+process_arguments "$@"
+
+if [ -z "$scummvm_game_id" ]; then
+    scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
+fi
+
+if [ -z "$game_type" ]; then
+    if [ -n "$scummvm_game_id" ]; then
+        game_type=scummvm
+    else
+        game_type="$(game_type_from_dir "$game_dir")"
+        if [ -z "$game_type" ]; then
+            echo >&2 "Error: unknown game type for $game, please specify"
+            exit 3
+        fi
+    fi
+fi
+
+if [ $copy_wrapper -eq 1 ]; then
+    new_game="${game%.app} New.app"
+    if [ -e "$new_game" ]; then
+        echo >&2 "Error: $new_game already exists, aborting"
+    fi
+else
+    new_game="$game"
+fi
+
+printf 'Game: %s\n' "$game"
+printf 'Game dir: %s\n' "$game_dir"
+printf 'Game type: %s\n' "$game_type"
+
+tmp="$(mktemp -d "${0##*/}.XXXXXX")"
+trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then mv "$tmp/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
+
+eval 'create_${game_type}_wrapper "$tmp"'
+if [ ! -L "$tmp/Game" ]; then
+    ln -s "Contents/Resources/$game_base/Game" "$tmp/Game"
+fi
+create_extra_app_wrappers "$tmp"
+if [ -e "$new_game" ]; then
+    echo >&2 "Error: $new_game still exists?"
+    exit 5
+fi
+mv "$tmp" "$new_game"
