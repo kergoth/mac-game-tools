@@ -1,0 +1,38 @@
+#!/bin/sh
+
+usage () {
+    echo >&2 "${0##*/} GOG_INSTALLER DESTDIR"
+    exit 1
+}
+
+if [ $# -ne 2 ]; then
+    usage
+fi
+
+set -e
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+installer="$1"
+destdir="$2"
+
+if [ -d "$installer" ]; then
+    installer="$(ls -1rt "$installer"/setup_*.exe | head -n 1)"
+    if [ -z "$installer" ]; then
+        usage
+    fi
+fi
+
+tempdir="$(mktemp -d "$destdir.XXXXXX")"
+trap 'rm -rf "$tempdir"' EXIT INT TERM
+
+innoextract -gLm -I app -I game -d "$tempdir" "$installer"
+rm -rf "$destdir"
+if [ -e "$tempdir/game" ]; then
+    mv "$tempdir/game" "$destdir"
+else
+    mv "$tempdir/app" "$destdir"
+fi
+mv "$tempdir" "$destdir/install-gog-uncaptured"
+rmdir "$destdir/install-gog-uncaptured" 2>/dev/null || true
