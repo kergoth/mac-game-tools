@@ -58,7 +58,7 @@ def main(cmdline_args):
         if args.excluded_link_paths and args.excluded_link_paths.match(link):
             continue
 
-        tag_list = tags.split(',')
+        tag_list = filter(None, tags.split(','))
         if args.excluded_tags:
             tag_list = filter(lambda t: not args.excluded_tags.match(t),
                               tag_list)
