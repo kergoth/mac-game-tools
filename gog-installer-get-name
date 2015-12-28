@@ -1,0 +1,63 @@
+#!/bin/sh
+
+usage () {
+    echo >&2 "${0##*/} GOG_INSTALLER"
+    exit 1
+}
+
+titlecase () {
+    if [ $# -gt 0 ]; then
+        python -c 'import titlecase; import sys; print(titlecase.titlecase(" ".join(sys.argv[1:])))' "$@"
+    else
+        python -c 'import titlecase; import sys; print(titlecase.titlecase(sys.stdin.read().rstrip()))'
+    fi
+}
+
+jq_value () {
+    jq "$@" | sed 's,^",,; s,"$,,'
+}
+
+
+if [ $# -ne 1 ]; then
+    usage
+fi
+
+set -e
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+installer="$1"
+if [ -d "$installer" ]; then
+    installer="$(ls -1rt "$installer"/setup_*.exe | head -n 1)"
+    if [ -z "$installer" ]; then
+        usage
+    fi
+fi
+
+tmp="$(mktemp -d -t "${0##*/}.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT INT TERM
+
+innoextract -gLm --gog-game-id "$installer" >"$tmp/innoextract_game_id.log"
+game_id="$(sed -n 's/^GOG\.com game ID is //p' <"$tmp/innoextract_game_id.log")"
+if [ -n "$game_id" ]; then
+    if innoextract -msl "$installer" 2>/dev/null | grep -qE "(app|game)/goggame-${game_id}.info$"; then
+        innoextract -gLms -I "app/goggame-${game_id}.info" -I "game/goggame-${game_id}.info" -d "$tmp" "$installer"
+        if [ -d "$tmp/game" ]; then
+            infofile="$tmp/game/goggame-${game_id}.info"
+        else
+            infofile="$tmp/app/goggame-${game_id}.info"
+        fi
+        if [ -e "$infofile" ]; then
+            app_name="$(jq_value <"$infofile" .name)"
+        fi
+    fi
+fi
+if [ -z "$app_name" ]; then
+    app_name="$(sed -n 's/^Inspecting "\([^"]*\)".*/\1/p' <"$tmp/innoextract_game_id.log")"
+    if [ -z "$app_name" ]; then
+        name_fn="$(basename "$installer" | sed -En -e 's#([a-zA-Z])([0-9])#\1_\2#g; s#^setup_([a-zA-Z0-9_]+)_(([0-9]\.)+[0-9]).*#\1#p')"
+        app_name="$(echo "$name_fn" | tr _ ' ' | titlecase)"
+    fi
+fi
+printf '%s\n' "$app_name" | sed "s,   *, ,g"
