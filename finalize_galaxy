@@ -1,0 +1,163 @@
+#!/bin/sh
+# - Link 'Game' to the game install directory
+# - Create support links
+# - Set icon from the galaxy or game icon
+# - If Galaxy, create extra launchers for other playTasks (i.e. Settings)
+# - Change the program name & path, and flags, to set up this game to launch
+# - Link docs from the game into Extras
+# - If galaxy, rename the app to match the name from the info file
+
+usage () {
+    echo >&2 "Usage: ${0##*/} GAME_APP [[GAME_APP]..]"
+    exit 2
+}
+
+die () {
+    printf >&2 'Error: %s\n' "$1"
+    exit "${2:-1}"
+}
+
+jq_value () {
+    jq "$@" | sed 's,^",,; s,"$,,'
+}
+
+largest_file () {
+    find "$1" -type f -name "$2" -print0 | xargs -0 stat -f '%z%t%N' | sort -rn | head -n 1 | cut -d"	" -f2-
+}
+
+plist_set () {
+    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3"
+}
+
+new_webloc () {
+    rm -f "$2"
+    /usr/libexec/PlistBuddy -c "Add URL string \"$1\"" -x "$2"
+}
+
+create_support_links () {
+    infofile="$1"
+    gamedir="$2"
+    outdir="$3"
+    jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.type == "URLTask") | .name + "|" + .link' | sed 's,^",,; s,"$,,' | \
+        while IFS="|" read name url; do
+            new_webloc "$url" "$outdir/$name.webloc"
+        done
+    jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -v '\.exe$' | \
+        while read path; do
+            ln -svf "../$gamedir/$(echo "$path" | tr "\\" "/")" "$outdir/"
+        done
+}
+
+create_wineskin_customexes () {
+    infofile="$1"
+    gamedir="$2"
+    gameapp="$3"
+    jq <"$infofile" '.playTasks[] | select(.isPrimary != true) | select(.type == "FileTask") | .name + "|" + .path ' | sed 's,^",,; s,"$,,' | grep '\.exe$' | \
+        while IFS="|" read name path; do
+            create_customexe "$name" "$gamedir/$path" "$gameapp"
+        done
+}
+
+create_customexe () {
+    exename="$1"
+    programpath="$2"
+    gameapp="$3"
+    customexe="$gameapp/$exename.app"
+
+    rm -rf "$customexe"
+    cp -a "$gameapp/Wineskin.app/Contents/Resources/CustomEXE.app" "$customexe"
+
+    wine_programpath="${programpath#drive_c/}"
+    plist_set "Program Name and Path" "$wine_programpath" "$customexe/Contents/Info.plist.cexe"
+
+    mkdir -p "$customexe/Icons"
+    wrestool -x -t14 -o "$customexe/Icons" "$gameapp/$programpath" 2>/dev/null || true
+    customexe_icon="$(largest_file "$customexe/Icons" "*.ico")"
+    if [ -n "$customexe_icon" ]; then
+        configure_icon "$customexe_icon" "$customexe"
+    fi
+    rm -rf "$customexe/Icons"
+
+    echo >&2 "Created $customexe"
+}
+
+configure_icon () {
+    icon_file="$1"
+    icon_gamedest="$2"
+    icondest="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$icon_gamedest/Contents/Info.plist")"
+    makeicns -in "$icon_file" -out "$icon_gamedest/Contents/Resources/$icondest"
+    sips -i "$icon_gamedest/Contents/Resources/$icondest"
+}
+
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+topdir="$PWD"
+for game; do
+    if [ ! -d "$game" ]; then
+        die "$game does not exist or is not a directory" 1
+    fi
+
+    game="$(cd "$game" && pwd)"
+    cd "$game" || exit 3
+
+    if [ -h Game ]; then
+        if [ ! -d Game ]; then
+            die "The 'Game' symlink is broken" 4
+        fi
+        gamedir="$(readlink Game)"
+    else
+        gamedir="$(find "drive_c/GOG Games" -depth 1 -type d 2>/dev/null | head -n 1)"
+        if [ -z "$gamedir" ]; then
+            gamedir="$(find "drive_c/Program Files/GalaxyClient/Games" -depth 1 -type d -not -name '!Downloads' | head -n 1)"
+            if [ -z "$gamedir" ]; then
+                die "Game install directory not found" 3
+            fi
+        fi
+    fi
+    mkdir -p Extras
+
+    infofile="$(find "$gamedir" -name goggame-\*.info -maxdepth 1)"
+    if [ -z "$infofile" ]; then
+        die "No goggame-*.info found in the game directory '$gamedir'" 4
+    fi
+
+    icon="${infofile%.info}.ico"
+    configure_icon "$icon" .
+    exepath="$(jq '.playTasks[] | select(.isPrimary == true) | .path' "$infofile" | sed 's,^",,; s,"$,,')"
+
+    create_support_links "$infofile" "$gamedir" Extras
+    create_wineskin_customexes "$infofile" "$gamedir" .
+
+    name="$(jq '.name' "$infofile" | sed 's,^",,; s,"$,,')"
+    if [ -n "$name" ]; then
+        plist_set CFBundleName "$name" Contents/Info.plist
+        plist_set CFBundleDisplayName "$name" Contents/Info.plist
+        new_game="${game%/*}/$(echo "$name" | tr -d :/).app"
+        if [ "$game" != "$new_game" ]; then
+            mv -v "$game" "$new_game"
+            printf >&2 "Renamed game from '%s' to '%s'\n" "$game" "$new_game"
+            game="$new_game"
+        fi
+        gamebase="${game##*/}"
+        new_gamedir="${gamedir%/*}/${gamebase%.app}"
+        if [ "$gamedir" != "$new_gamedir" ]; then
+            mv -v "$gamedir" "$new_gamedir"
+            printf >&2 "Renamed game directory from '%s' to '%s'\n" "$gamedir" "$new_gamedir"
+            gamedir="$new_gamedir"
+            rm -f Game
+            ln -sv "$gamedir" Game
+        fi
+    fi
+
+    wine_gamedir="/${gamedir#drive_c/}"
+    plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
+    plist_set "Program Flags" "" Contents/Info.plist
+    rmdir Extras 2>/dev/null || true
+    cd "$topdir" 2>/dev/null || break
+done

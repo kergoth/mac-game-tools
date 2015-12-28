@@ -1,23 +1,18 @@
 #!/bin/sh
+# - Link 'Game' to the game install directory
 # - Create support links
-# - Set icon from the galaxy icon
+# - Set icon from the galaxy or game icon
+# - If Galaxy, create extra launchers for other playTasks (i.e. Settings)
 # - Change the program name & path, and flags, to set up this game to launch
+# - Link docs from the game into Extras
+# - If galaxy, rename the app to match the name from the info file
 
-new_webloc () {
-    /usr/libexec/PlistBuddy -c "Add URL string \"$1\"" -x "$2"
+jq_value () {
+    jq "$@" | sed 's,^",,; s,"$,,'
 }
 
-create_support_links () {
-    infofile="$1"
-    gamedir="$2"
-    outdir="$3"
-    jq <"$infofile" '.supportTasks[] | select(.type == "URLTask") | .name + "|" + .link' | sed 's,^",,; s,"$,,' | \
-        while IFS="|" read name url; do
-            new_webloc "$url" "$outdir/$name.webloc"
-        done
-    jq <"$infofile" '.supportTasks[] | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | while read path; do
-            ln -sf "../$gamedir/$path" "$outdir/"
-        done
+plist_set () {
+    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3"
 }
 
 configure_icon () {
@@ -67,7 +62,7 @@ END
     fi
 }
 
-galaxypath="/Program Files/GalaxyClient/GalaxyClient.exe"
+
 scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
 PATH="$scriptdir:$PATH"
 
@@ -78,30 +73,48 @@ fi
 
 cd "$1"
 game="$PWD"
-gamedir="$(find "drive_c/GOG Games" -depth 1 -type d | head -n 1)"
+gamedir="$(find "drive_c/GOG Games" -depth 1 -type d 2>/dev/null | head -n 1)"
+if [ -z "$gamedir" ]; then
+    gamedir="$(find "drive_c/Program Files/GalaxyClient/Games" -depth 1 -type d -not -name '!Downloads' | head -n 1)"
+    if [ -z "$gamedir" ]; then
+        echo >&2 "Error: game install directory not found"
+        exit 3
+    fi
+fi
 rm -f Game
-ln -s "$gamedir" Game
+ln -sv "$gamedir" Game
 
-mkdir -p "$game/Extras"
+mkdir -p Extras
+infofile="$(find "$gamedir" -name goggame-\*.info -maxdepth 1)"
+if [ -n "$infofile" ]; then
+    "$scriptdir/finalize_galaxy" "$game"
+    # finalize_galaxy may rename the game and gamedir based on metadata
+    gamedir="$(readlink Game)"
+else
+    configure_icon_nogalaxy "$game" "$gamedir"
+    exepath="$(find "$gamedir" -iname \*.exe | head -n 1)"
+    exepath="${exepath#$gamedir/}"
+    wine_gamedir="/${gamedir#drive_c/}"
+    plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
+    plist_set "Program Flags" "" Contents/Info.plist
+    if [ ! -e Contents/Resources/finalize_galaxy ]; then
+        cp "$scriptdir/finalize_galaxy" Contents/Resources/
+    fi
+    cat >finalize_galaxy <<END
+#!/bin/sh
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd -P)"
+"\$scriptdir/Contents/Resources/finalize_galaxy" "\$scriptdir" && \
+    rm -fv "\$0" && \
+    rm -fv "\$scriptdir/Contents/Resources/finalize_galaxy"
+END
+    chmod +x finalize_galaxy
+fi
+
 find "$gamedir" -maxdepth 1 -type f | \
     grep -Ei '\.(pdf|txt|doc|rtf|html?)$' | \
     while read doc; do
-        ln -sf "../$doc" "$game/Extras/"
+        if [ ! -e "Extras/${doc##*/}" ]; then
+            ln -svf "../$doc" "Extras/"
+        fi
     done
-
-wine_gamedir="/${gamedir#drive_c/}"
-infofile="$(ls -1 "$gamedir"/*.info 2>/dev/null)"
-if [ $? -eq 0 ]; then
-    create_support_links "$infofile" "$gamedir" "$game/Extras"
-
-    id="$(basename "$infofile" | sed "s,^goggame-,,; s,\.info$,,")"
-    icon="$gamedir/goggame-$id.ico"
-    configure_icon "$icon" "$game"
-    exepath="$(jq '.playTasks[] | select(.isPrimary == true) | .path' "$infofile" | sed 's,^",,; s,"$,,')"
-else
-    configure_icon_nogalaxy "$game" "$gamedir"
-    exepath="$(find "$gamedir" -iname \*.exe | head -n 1 | sed "s,^$gamedir/,,")"
-fi
-/usr/libexec/PlistBuddy -c "Set 'Program Name and Path' '$wine_gamedir/$exepath'" "$game/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set 'Program Flags' ''" "$game/Contents/Info.plist"
 rmdir "$game/Extras" 2>/dev/null || true
