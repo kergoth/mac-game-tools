@@ -71,7 +71,10 @@ def main(cmdline_args):
     in_by_tag_only = in_by_tag - in_backlog
     for game_name in in_by_tag_only:
         for tag in tagdb_links[game_name]:
-            os.unlink(os.path.join(args.tag_tree_path, tag, game_name))
+            to_remove = os.path.join(args.tag_tree_path, tag, game_name)
+            p_to_remove = to_remove.replace(args.backlog_path + os.sep, '')
+            print('-' + p_to_remove)
+            os.unlink(to_remove)
 
     for tag in set(itertools.chain(*tagdb.itervalues())):
         mkdir(os.path.join(args.tag_tree_path, tag))
@@ -87,11 +90,19 @@ def main(cmdline_args):
         if tags != old_tags:
             in_old_only = old_tags - tags
             for tag in in_old_only:
-                os.unlink(os.path.join(args.tag_tree_path, tag, game_name))
+                to_remove = os.path.join(args.tag_tree_path, tag, game_name)
+                p_to_remove = to_remove.replace(args.backlog_path + os.sep, '')
+                remove_dest = os.readlink(to_remove)
+                print('-{0} -> {1}'.format(p_to_remove, remove_dest))
+                os.unlink(to_remove)
 
             in_current_only = tags - old_tags
             for tag in in_current_only:
-                os.symlink(os.readlink(link_path), os.path.join(args.tag_tree_path, tag, game_name))
+                add_dest = os.readlink(link_path)
+                to_add = os.path.join(args.tag_tree_path, tag, game_name)
+                p_to_add = to_add.replace(args.backlog_path + os.sep, '')
+                print('+{0} -> {1}'.format(p_to_add, add_dest))
+                os.symlink(add_dest, to_add)
 
 
 class ArgumentParser(argparse.ArgumentParser):
