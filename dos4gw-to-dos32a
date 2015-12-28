@@ -43,9 +43,13 @@ if [ $# -lt 1 ]; then
     set -- .
 fi
 
-#dos32a="$HOME/Downloads/dos32a-912-bin"
-dos32a="/Volumes/My Passport/Game Tools/dos32a"
-#dos32a="/Users/kergoth/Applications/Games/Pending/Game Tools/dos32a"
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+for dos32a in "$scriptdir/dos32a" "$scriptdir/dos32a-912-bin" \
+              "/Volumes/My Passport/Game Porting Tools/dos32a"; do
+    if [ -e "$dos32a" ]; then
+        break
+    fi
+done
 if [ ! -e "$dos32a" ]; then
     echo >&2 "$dos32a does not exist, aborting"
     exit 1
