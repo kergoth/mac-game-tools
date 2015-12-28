@@ -1,0 +1,63 @@
+#!/bin/sh
+
+template="GOG Galaxy for Windows"
+
+usage () {
+    echo >&2 "${0##*/} WRAPPER_PATH [WRAPPER_NAME]"
+    exit 2
+}
+
+plist_set () {
+    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3/Contents/Info.plist"
+}
+
+
+if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+    usage
+fi
+
+set -e
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+wrapper_path="$1"
+if [ -e "$wrapper_path" ]; then
+    echo >&2 "Error: $wrapper_path already exists"
+    exit 1
+fi
+
+if [ $# -eq 2 ]; then
+    wrapper_name="$2"
+else
+    wrapper_name="$(basename "$wrapper_path" | sed -e "s/\.app$//")"
+fi
+
+cp -a "$scriptdir/$template.app/." "$wrapper_path/"
+plist_set CFBundleIdentifier "org.kergoth.gog.$(printf "%s" "$wrapper_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')" "$wrapper_path"
+plist_set CFBundleName "$wrapper_name" "$wrapper_path"
+plist_set CFBundleDisplayName "$wrapper_name" "$wrapper_path"
+plist_set CFBundleShortVersionString GOG "$wrapper_path"
+# /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string \"$wrapper_name\"" "$wrapper_path/Contents/Info.plist"
+
+cp "$scriptdir/finalize_gog" "$wrapper_path/Contents/Resources/"
+cp "$scriptdir/finalize_galaxy" "$wrapper_path/Contents/Resources/"
+cat >"$wrapper_path/finalize_gog" <<END
+#!/bin/sh
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd -P)"
+"\$scriptdir/Contents/Resources/finalize_gog" "\$scriptdir" && \
+    rm -fv "\$0" && \
+    rm -fv "\$scriptdir/Contents/Resources/finalize_gog"
+if [ \$? -eq 0 ] && [ ! -e "\$scriptdir/finalize_galaxy" ]; then
+    rm -fv "\$scriptdir/Contents/Resources/finalize_galaxy"
+fi
+END
+chmod +x "$wrapper_path/finalize_gog"
+
+if which tag >/dev/null 2>&1; then
+    tag -a Game "$wrapper_path"
+fi
