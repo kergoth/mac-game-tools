@@ -1,0 +1,111 @@
+#!/bin/sh
+# Wrap a .app in another .app
+# - Move it to Contents/Resources/
+# - Copy or link the icon
+# - Copy the tags
+# - Copy app metadata from the plist (name, display name, version, ..)
+# - Symlink Extras
+# - Arrange for supplementary apps to be available (i.e. Galaxy, Steam)
+
+usage () {
+    echo >&2 "${0##*/} FROM_APP TO_APP"
+    exit 2
+}
+
+copy_tags () {
+    if which tag >/dev/null 2>&1; then
+        tag -s "$(tag -lN "$1")" "$2"
+    fi
+}
+
+copy_plist_info () {
+    for key in CFBundleIdentifier CFBundleName CFBundleDisplayName \
+               CFBundleVersion CFBundleShortVersionString; do
+        from_value="$(pb -c "Print '$(pb_escape_value "$key")'" "$1/Contents/Info.plist" | sed 's,^",,g; s,"$,,g')"
+        if [ -n "$from_value" ]; then
+            plist_set "$key" "$from_value" "$2/Contents/Info.plist"
+        fi
+    done
+}
+
+plist_set () {
+    pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+}
+
+pb () {
+    PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
+
+scriptdir="$(cd "$(dirname "$0")" && pwd)"
+PATH="$scriptdir:$PATH:/usr/libexec"
+
+move=1
+while getopts nh opt; do
+    case "$opt" in
+        n)
+            move=0
+            ;;
+        \?|h)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -ne 2 ]; then
+    usage
+fi
+
+from_app="$1"
+if [ ! -e "$from_app" ]; then
+    die "$from_app does not exist"
+fi
+
+to_app="$2"
+if [ ! -e "$to_app" ]; then
+    die "$to_app does not exist"
+fi
+
+from_base="${from_app##*/}"
+destpath="Contents/Resources"
+
+copy_tags "$from_app" "$to_app"
+copy_plist_info "$from_app" "$to_app"
+copymacicon "$from_app" "$to_app"
+
+mkdir -p "$to_app/$destpath"
+if [ -e "$from_app/Extras" ]; then
+    mkdir -p "$to_app/Extras"
+    for i in "$from_app/Extras/"*; do
+        if [ -e "$i" ]; then
+            ln -s "../$destpath/$from_base/Extras/${i##$from_app/Extras/}" "$to_app/Extras/"
+        fi
+    done
+
+    # if [ -e "$to_app/Extras" ] && [ -z "$(ls -1a "$to_app/Extras")" ]; then
+    #     rmdir "$to_app/Extras"
+    # fi
+    # if [ -e "$to_app/Extras" ]; then
+    #     for i in "$from_app/Extras/"*; do
+    #         if [ -e "$i" ]; then
+    #             ln -s "../$destpath/$from_base/Extras/${i##$from_app/Extras/}" "$to_app/Extras/"
+    #         fi
+    #     done
+    # else
+    #     ln -s "$destpath/$from_base/Extras" "$to_app/Extras"
+    # fi
+fi
+
+find "$from_app" -iname \*.app -mindepth 1 -maxdepth 1 | \
+    grep -v Wineskin | while read extra_app; do
+        ln -s "$destpath/$from_base/${extra_app#$from_app/}" "$to_app/"
+    done
+
+if [ $move -eq 1 ]; then
+    mv "$from_app" "$to_app/$destpath/"
+fi
