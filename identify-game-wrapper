@@ -64,9 +64,6 @@ identify_game_wrapper () {
         echo "gemrb"
     elif [ -e "$game/Contents/MacOS/Doomsday" ]; then
         echo "doomsday"
-    elif [ -e "$game/Contents/Resources/scummvm" ]; then
-        # GoG scummvm wrapper
-        echo "scummvm (gog)"
     elif [ -e "$game/__Installer/installerdata.xml" ]; then
         echo "origin"
     elif [ -e "$game/Contents/Resources/snes9x" ]; then
@@ -80,6 +77,9 @@ identify_game_wrapper () {
     elif [ -e "$game/Contents/MacOS/GOGLauncher" ]; then
         if ls "$game/Contents/Resources/game"/*/Wineskin.app >/dev/null 2>&1; then
             echo "gog - windows (wineskin)"
+        elif [ -e "$game/Contents/Resources/scummvm" ]; then
+            # GoG scummvm wrapper
+            echo "gog - scummvm"
         else
             echo "gog"
         fi
