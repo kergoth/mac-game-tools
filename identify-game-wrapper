@@ -83,6 +83,8 @@ identify_game_wrapper () {
         else
             echo "gog"
         fi
+    elif [ -e "$game/Contents/MacOS/scummvm-wrapped" ]; then
+        echo "scummvm"
     else
         echo unknown
     # else
