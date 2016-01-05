@@ -91,19 +91,6 @@ if [ -e "$from_app/Extras" ]; then
             ln -s "../$destpath/$from_base/Extras/${i##$from_app/Extras/}" "$to_app/Extras/"
         fi
     done
-
-    # if [ -e "$to_app/Extras" ] && [ -z "$(ls -1a "$to_app/Extras")" ]; then
-    #     rmdir "$to_app/Extras"
-    # fi
-    # if [ -e "$to_app/Extras" ]; then
-    #     for i in "$from_app/Extras/"*; do
-    #         if [ -e "$i" ]; then
-    #             ln -s "../$destpath/$from_base/Extras/${i##$from_app/Extras/}" "$to_app/Extras/"
-    #         fi
-    #     done
-    # else
-    #     ln -s "$destpath/$from_base/Extras" "$to_app/Extras"
-    # fi
 fi
 
 find "$from_app" -iname \*.app -mindepth 1 -maxdepth 1 | \
