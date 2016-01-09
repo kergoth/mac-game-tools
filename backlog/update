@@ -1,6 +1,7 @@
 #!/bin/sh
 
-excluded_games='.*(Setup|Launcher|-64|Editor|((/Original|Pending|Utilities|Obsolete|Replaced|Archived.*)/))'
+excluded_games='.*(Setup|Launcher|-64|Editor|((Original|Pending|Utilities|Obsolete|Replaced|Archived.*)/))'
+excluded_backlog='.*/By Tag/'
 excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves|Saved Games in Wrapper$'
 excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
 
@@ -8,10 +9,12 @@ scriptdir="$(dirname "$0")"
 cd "$scriptdir"
 set -- \
     -x "$excluded_games" \
+    -X "$excluded_backlog" \
     \
-    -u '8 - Unsorted' \
+    -u '5 - Backlog' \
     -a '.*(Broken|Unplayable)/#7 - Not Playing/Broken, Unplayable' \
     -a '.*Nostalgia/#7 - Not Playing/Benched - Nostalgia, Old' \
+    -a '.*Benched/#7 - Not Playing/Benched' \
     -a ".*Won't Play#7 - Not Playing/Benched - Meh, Crap" \
     -a '.*Kids & Education#7 - Not Playing/Benched - Kids' \
     -a '.*/OpenEmu Library/#7 - Not Playing/Emulation' \
@@ -19,7 +22,12 @@ set -- \
     -a 'alpha|beta|demo#7 - Not Playing/Demos, Unreleased' \
     \
     "/Volumes/My Passport/Games" \
+    "/Volumes/My Passport/Games - Benched" \
+    "/Volumes/My Passport/Games - Broken" \
     "/Volumes/My Passport/Games - Nostalgia" \
+    "/Volumes/My Passport/Games - Unplayable" \
+    "/Volumes/My Passport/Games - Won't Play" \
+    "/Volumes/My Passport/Games - Kids & Education" \
     "/Volumes/My Passport/OpenEmu Library" \
     \
     "/Volumes/Games Archive"
