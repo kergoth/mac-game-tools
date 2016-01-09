@@ -8,7 +8,11 @@
 # - Arrange for supplementary apps to be available (i.e. Galaxy, Steam)
 
 usage () {
-    echo >&2 "${0##*/} FROM_APP TO_APP"
+    echo >&2 "${0##*/} [options] FROM_APP TO_APP"
+    echo >&2
+    echo >&2 "Options:"
+    echo >&2 "  -n              Do not move FROM_APP into TO_APP"
+    echo >&2 "  -r REL_DEST     FROM_APP will live in TO_APP/Contents/Resources/REL_DEST"
     exit 2
 }
 
