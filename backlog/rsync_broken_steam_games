@@ -1,0 +1,2 @@
+#!/bin/sh
+for i in /Volumes/Games\ Archive/Games\ -\ {Broken,Unplayable}/*.app/drive_c/Program\ Files/Steam; do echo "$i"; rsync -apPu --ignore-existing "$i"/SteamApps/ /Volumes/My\ Passport/SteamLibraryWindows/steamapps/; done
