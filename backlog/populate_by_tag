@@ -53,8 +53,10 @@ def main(cmdline_args):
         try:
             link, tags = tag_line.split('\t', 1)
         except ValueError:
-            tags = ""
-        link = link.rstrip()
+            link, tags = (tag_line, "")
+        else:
+            link = link.rstrip()
+
         if args.excluded_link_paths and args.excluded_link_paths.match(link):
             continue
 
