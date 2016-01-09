@@ -1,0 +1,89 @@
+#!/bin/sh
+
+set -e
+
+script="$0"
+while [ -h "$script" ]; do
+    script="$(abs_readlink "$script")"
+done
+scriptdir="$(cd "$(dirname "$script")" && pwd -P)"
+PATH="$scriptdir:${scriptdir%/*}:$PATH"
+
+archive="${1:-/Volumes/Games Archive}"
+archive="${archive%/}"
+
+find "7 - Not Playing" -type l | while read l; do
+    case "$l" in
+        *Meh*)
+            dest="$archive/Games - Won't Play"
+            ;;
+        *Kids*)
+            dest="$archive/Games - Kids"
+            ;;
+        */Benched/*)
+            dest="$archive/Games - Benched"
+            ;;
+        */Benched\ -\ Nostalgia,\ Old/*)
+            dest="$archive/Games - Nostalgia"
+            ;;
+        */Demos,\ Unreleased/*)
+            dest="$archive/Games - Demos, Unreleased"
+            ;;
+        *)
+            continue
+            ;;
+    esac
+
+    f="$(abs_readlink "$l")"
+    f="${f%/}"
+    if [ ! -e "$f" ]; then
+        echo >&2 "Error: $f does not exist, skipping"
+        continue
+    fi
+
+    case "$(identify-game-wrapper "$f")" in
+        steam)
+            dest="/Volumes/My Passport/${dest#$archive/}"
+            echo >&2 "Skipping move of native steam game $f"
+            echo >&2 "Changed dest to $dest"
+            ;;
+    esac
+
+    case "$f" in
+        /Volumes/Games\ Archive/*)
+            ;;
+        "$archive/"*)
+            ;;
+        /Volumes/*)
+            vol_rel=${f#/Volumes/}
+            vol_name="${f%%/*}"
+            if [ ! -d "/Volumes/$vol_name" ]; then
+                echo >&2 "$vol_name is not mounted, skipping $f"
+                continue
+            fi
+
+            relpath="${f#/Volumes/*/*/}"
+            case "$relpath" in
+                /*)
+                    echo >&2 "Error: unrecognized path: $f"
+                    continue
+                    ;;
+            esac
+
+            reldir="$(dirname "$relpath")"
+            if [ "$reldir" != "." ]; then
+                dest="$dest/$reldir"
+            fi
+            if [ -e "$dest/${f##*/}" ]; then
+                continue
+            fi
+            mkdir -p "$dest"
+            # mv "$f" "$dest/"
+            rsync -azpP "$f" "$dest/"
+            bgrm "$f"
+            ;;
+        *)
+            continue
+            ;;
+    esac
+done
