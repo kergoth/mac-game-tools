@@ -1,4 +1,55 @@
 #!/bin/sh
 
-wrapper="$(mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemFSName == 'SubdirAppWrapper.app'" | head -n 1)"
-exec "$wrapper"/Contents/Resources/wrap "$@"
+set -e
+
+if [ $# -lt 1 ]; then
+    echo >&2 "Usage: ${0##*/} SUBDIR [APP [NEWAPPNAME]]"
+    exit 1
+fi
+
+subdir="$(cd "$1" && pwd)"
+subdirname="$(basename "$subdir")"
+
+if [ $# -lt 2 ]; then
+    appname="$subdirname"
+else
+    appname="$2"
+fi
+app="$appname.app"
+
+if [ -e "$app" ]; then
+    echo >&2 "Error: $app already exists, aborting"
+    exit 3
+fi
+
+if [ $# -lt 3 ]; then
+    if [ -e "$subdir/$app" ]; then
+        apppath="$subdir/$app"
+    else
+        if [ $(ls -1d "$subdir"/*.app | wc -l) -ne 1 ]; then
+            echo >&2 "Usage: ${0##*/} SUBDIR [NEWAPPNAME [APPTORUN]]"
+            echo >&2 "Error: did not find an app to run, please specify"
+            exit 1
+        fi
+        apppath="$(echo "$subdir"/*.app)"
+    fi
+else
+    if [ ! -e "$3" ]; then
+        echo >&2 "Error: path '$3' does not exist"
+        exit 4
+    fi
+    apppath="$(cd "$3" && pwd)"
+fi
+apptorun="$subdirname/${apppath##*/}"
+
+profile="$(echo "$appname"|sed 's, ,.,g'|tr A-Z a-z)"
+identifier="org.kergoth.subdirwrapper.$profile"
+
+new-app "$app"
+cat <<END >"$app/Contents/MacOS/app"
+cd "\$(dirname "\$0")/../Resources/$subdirname"
+exec open -W "$apptorun" --args "\$@"
+END
+chmod +x "$app/Contents/MacOS/app"
+wrap-app -nr "$apptorun" "$appath" "$app"
+cp -a "$subdir" "$app/Contents/Resources/"

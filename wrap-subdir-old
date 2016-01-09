@@ -1,0 +1,4 @@
+#!/bin/sh
+
+wrapper="$(mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemFSName == 'SubdirAppWrapper.app'" | head -n 1)"
+exec "$wrapper"/Contents/Resources/wrap "$@"
