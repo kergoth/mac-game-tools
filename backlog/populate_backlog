@@ -25,6 +25,8 @@ def main(cmdline_args):
                         help='Paths to search for games')
     parser.add_argument('-x', '--excluded', metavar='REGEX', type=regex,
                         help='Exclusion pattern (regular expression)')
+    parser.add_argument('-X', '--excluded-backlog', metavar='REGEX', type=regex,
+                        help='Exclusion pattern for backlog area (regular expression)')
     parser.add_argument('-a', '--auto-scheme', metavar='SCHEME', dest='auto_schemes',
                         action='append', type=auto_scheme_nocase,
                         help='Specify automatic organization by source path. '
@@ -51,7 +53,7 @@ def main(cmdline_args):
     for l in link_games_paths:
         games_by_name[os.path.basename(l)] = l
 
-    backlog_games = find_apps(args.backlog_path)
+    backlog_games = find_apps(args.backlog_path, excluded=args.excluded_backlog)
     backlog_by_name = dict((os.path.basename(a), a) for a in backlog_games)
 
     in_game_dirs = set(games_by_name)
