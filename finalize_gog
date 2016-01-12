@@ -102,10 +102,9 @@ else
     fi
     cat >finalize_galaxy <<END
 #!/bin/sh
-scriptdir="\$(cd "\$(dirname "\$0")" && pwd -P)"
-cd "\$scriptdir"
+cd "\$(dirname "\$0")"
 "./Contents/Resources/finalize_galaxy" . && \
-    rm -fv "./\${0##*/}" "./Contents/Resources/finalize_galaxy"
+    rm -f "\${0##*/}" "Contents/Resources/finalize_galaxy"
 END
     chmod +x finalize_galaxy
 fi
