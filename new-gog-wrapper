@@ -1,6 +1,8 @@
 #!/bin/sh
 
-template="GOG Galaxy for Windows"
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
 
 usage () {
     echo >&2 "${0##*/} WRAPPER_PATH [WRAPPER_NAME]"
@@ -37,7 +39,8 @@ else
     wrapper_name="$(basename "$wrapper_path" | sed -e "s/\.app$//")"
 fi
 
-cp -a "$scriptdir/$template.app/." "$wrapper_path/"
+template="$(locate_app_by_id "org.kergoth.gog.GOG Galaxy for Windows" | head -n 1)"
+cp -a "$template" "$wrapper_path"
 plist_set CFBundleIdentifier "org.kergoth.gog.$(printf "%s" "$wrapper_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')" "$wrapper_path"
 plist_set CFBundleName "$wrapper_name" "$wrapper_path"
 plist_set CFBundleDisplayName "$wrapper_name" "$wrapper_path"

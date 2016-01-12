@@ -136,10 +136,14 @@ END
         done
 }
 
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
 create_dosbox_wrapper () {
     destdir="$1"
     boxer="$destdir/Contents/Resources/$game_name.boxer"
-    wrapper_template="$scriptdir/Boxer Standalone.app"
+    wrapper_template="$(locate_app_by_id net.washboardabs.boxer-standalone | head -n 1)"
     identifier="org.kergoth.gog.boxer.$(adjust_identifier "$game_name")"
 
     cp -a "$wrapper_template/." "$destdir/"
@@ -329,7 +333,7 @@ END
 
 
 scriptdir="$(cd "$(dirname "$0")" && pwd)"
-scummvm_wrapper_template="$scriptdir/ScummVMWrapper.app"
+scummvm_wrapper_template="$(locate_app_by_id com.dotalux.scummwrapper.svwlauncher | sed 's,$,/Contents/MacOS/scummvm,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/scummvm$,,')"
 PATH="$scriptdir:$PATH:/usr/libexec"
 
 process_arguments "$@"
