@@ -114,7 +114,7 @@ find "$gamedir" -maxdepth 1 -type f | \
     grep -Ei '\.(pdf|txt|doc|rtf|html?)$' | \
     while read doc; do
         if [ ! -e "Extras/${doc##*/}" ]; then
-            ln -svf "../$doc" "Extras/"
+            ln -svf "../$doc" "Extras"
         fi
     done
 rmdir "$game/Extras" 2>/dev/null || true
