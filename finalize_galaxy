@@ -34,7 +34,7 @@ new_webloc () {
     /usr/libexec/PlistBuddy -c "Add URL string \"$1\"" -x "$2"
 }
 
-create_support_links () {
+create_extras () {
     infofile="$1"
     gamedir="$2"
     outdir="$3"
@@ -132,7 +132,7 @@ for game; do
     icon="${infofile%.info}.ico"
     configure_icon "$icon" .
 
-    create_support_links "$infofile" "$gamedir" Extras
+    create_extras "$infofile" "$gamedir" Extras
     rmdir Extras 2>/dev/null || true
 
     create_wineskin_customexes "$infofile" "$gamedir" .
