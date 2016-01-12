@@ -52,16 +52,17 @@ create_wineskin_customexes () {
     infofile="$1"
     gamedir="$2"
     gameapp="$3"
-    jq <"$infofile" '.playTasks[] | select(.isPrimary != true) | select(.type == "FileTask") | .name + "|" + .path ' | sed 's,^",,; s,"$,,' | grep '\.exe$' | \
-        while IFS="|" read name path; do
-            create_customexe "$name" "$gamedir/$path" "$gameapp"
+    jq <"$infofile" '.playTasks[] | select(.isPrimary != true) | select(.type == "FileTask") | .name + "|" + .arguments + "|" + .path ' | sed 's,^",,; s,"$,,' | grep '\.exe$' | \
+        while IFS="|" read name arguments path; do
+            create_customexe "$name" "$gamedir/$path" "$arguments" "$gameapp"
         done
 }
 
 create_customexe () {
     exename="$1"
     programpath="$2"
-    gameapp="$3"
+    programargs="$3"
+    gameapp="$4"
     customexe="$gameapp/$exename.app"
 
     rm -rf "$customexe"
@@ -69,6 +70,7 @@ create_customexe () {
 
     wine_programpath="${programpath#drive_c/}"
     plist_set "Program Name and Path" "$wine_programpath" "$customexe/Contents/Info.plist.cexe"
+    plist_set "Program Flags" "$programargs" "$customexe/Contents/Info.plist.cexe"
 
     mkdir -p "$customexe/Icons"
     wrestool -x -t14 -o "$customexe/Icons" "$gameapp/$programpath" 2>/dev/null || true
@@ -129,10 +131,15 @@ for game; do
 
     icon="${infofile%.info}.ico"
     configure_icon "$icon" .
-    exepath="$(jq '.playTasks[] | select(.isPrimary == true) | .path' "$infofile" | sed 's,^",,; s,"$,,')"
 
     create_support_links "$infofile" "$gamedir" Extras
+    rmdir Extras 2>/dev/null || true
+
     create_wineskin_customexes "$infofile" "$gamedir" .
+
+    playinfo="$(jq '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile" | sed 's,^",,; s,"$,,')"
+    exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1)"
+    exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
 
     name="$(jq '.name' "$infofile" | sed 's,^",,; s,"$,,')"
     if [ -n "$name" ]; then
@@ -157,7 +164,8 @@ for game; do
 
     wine_gamedir="/${gamedir#drive_c/}"
     plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
-    plist_set "Program Flags" "" Contents/Info.plist
-    rmdir Extras 2>/dev/null || true
+    plist_set "Program Flags" "$exeargs" Contents/Info.plist
+
     cd "$topdir" 2>/dev/null || break
 done
+exit 0
