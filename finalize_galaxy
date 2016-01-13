@@ -42,7 +42,7 @@ create_extras () {
         while IFS="|" read name url; do
             new_webloc "$url" "$outdir/$name.webloc"
         done
-    jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -v '\.exe$' | \
+        jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -Eiv '\.(exe|bat)$' | \
         while read path; do
             ln -svf "../$gamedir/$(echo "$path" | tr "\\" "/")" "$outdir/"
         done
@@ -52,7 +52,7 @@ create_wineskin_customexes () {
     infofile="$1"
     gamedir="$2"
     gameapp="$3"
-    jq <"$infofile" '.playTasks[] | select(.isPrimary != true) | select(.type == "FileTask") | .name + "|" + .arguments + "|" + .path ' | sed 's,^",,; s,"$,,' | grep '\.exe$' | \
+    jq <"$infofile" '.playTasks[] | select(.isPrimary != true) | select(.type == "FileTask") | .name + "|" + .arguments + "|" + .path ' | sed 's,^",,; s,"$,,' | grep -Ei '\.(exe|bat)$' | \
         while IFS="|" read name arguments path; do
             create_customexe "$name" "$gamedir/$path" "$arguments" "$gameapp"
         done
