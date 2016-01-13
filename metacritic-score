@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -euo pipefail
+trap "echo 'error: Script failed: see failed command above'" ERR
+
+ddg () {
+    http --check-status https://duckduckgo.com/html/ q=="$*" | pup '.links_main > a attr{href}'
+}
+
+metacritic_score () {
+    http --check-status "$@" | pup '.metascore_anchor .metascore_w span text{}'
+}
+
+metacritic_link="$(ddg site:metacritic.com "$*" | sed -n 's/\(.*\/game\/[^\/]*\/[^\/]*\).*/\1/p' | head -n 1)"
+if [ -z "$metacritic_link" ]; then
+    echo >&2 "Error: no link for $*"
+    exit 1
+fi
+
+score="$(metacritic_score "$metacritic_link")"
+if [ -z "$score" ]; then
+    echo >&2 "Error: no score for $*"
+    exit 2
+fi
+echo "$score"
