@@ -1,9 +1,5 @@
 #!/bin/sh
 
-imdb_rating_from_page () {
-    http --check-status --ignore-stdin "http://www.imdb.com/title/$1/" | pup 'span[itemprop="ratingValue"] text{}'
-}
-
 imdb_ratings () {
     results="$(mktemp -t "${0##*/}.XXXXXX")" || exit 1
     trap 'rm -f "$results"' EXIT INT TERM
@@ -29,10 +25,6 @@ imdb_ratings () {
     done
     rm -f "$results"
     trap - EXIT INT TERM
-}
-
-urldecode () {
-    python -c 'import urllib2,sys; print(urllib2.unquote(sys.argv[1]))' "$*"
 }
 
 htmldecode () {
