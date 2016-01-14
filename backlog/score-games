@@ -2,7 +2,7 @@
 
 touch scores.txt
 find [0-9]* -type l | while read game; do
-    name="$(basename "$game" | sed 's,\.app$,,; s,(.*),,g;' | tr -d '[:punct:]' | sed 's,   *, ,g')"
+    name="$(basename "$game" | sed 's,\.app$,,; s,(.*),,g;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,;')"
     if ! grep -qE "^$name\t" scores.txt; then
         score="$(metacritic-score "$name")" || continue
         if [ "$score" != "0" ]; then
