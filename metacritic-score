@@ -3,19 +3,56 @@
 set -euo pipefail
 trap "echo 'error: Script failed: see failed command above'" ERR
 
+
 ddg () {
     http --check-status --ignore-stdin https://duckduckgo.com/html/ q=="$*" | pup '.links_main > a attr{href}'
 }
 
-metacritic_search () {
-    ddg site:metacritic.com/game/pc/ "$*" | sed -n 's/\(.*\/game\/[^\/]*\/[^\/]*\).*/\1/p'
+ddg_search () {
+    ddg site:metacritic.com/game/pc/ "$*"
+}
+
+goog () {
+    # http --check-status --ignore-stdin www.google.com/search q=="$*" | pup 'h3.r a attr{href}' | sed -n -e 's/^\/url?q=//; s/&.*//'
+    http --check-status --ignore-stdin www.google.com/search q=="$*" | pup 'h3.r a attr{href}' | python -c 'import sys, urlparse; print("\n".join(urlparse.parse_qs(urlparse.urlparse(l.rstrip()).query)["q"][0] for l in sys.stdin.readlines()))'
+}
+
+goog_search () {
+    goog site:metacritic.com/game/pc/ "$*"
 }
 
 metacritic_score () {
     http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w span text{}'
 }
 
-metacritic_link="$(metacritic_search "$*" | head -n 1)"
+critic_search () {
+    metacritic_root="http://www.metacritic.com"
+    http --check-status --ignore-stdin "${metacritic_root}/search/game/$*/results" | pup 'a.col_left attr{href}' | sed "s,^,$metacritic_root," | grep '/game/pc/'
+}
+
+evalf () {
+    fmt="$1"
+    shift
+    # printf >&2 "evalf: $fmt\n" "$@"
+    # eval echo >&2 "evalf: $(printf "$fmt" "$@")"
+    eval "$(printf "$fmt" "$@")"
+}
+
+
+engine=goog
+while getopts e:h opt; do
+    case "$opt" in
+        e)
+            engine="$OPTARG"
+            ;;
+        \?|h)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+metacritic_link="$(evalf '%s_search "%s"' "$engine" "$*" | head -n 1)"
 if [ -z "$metacritic_link" ]; then
     echo >&2 "Error: no link for $*"
     exit 1
@@ -25,4 +62,4 @@ score="$(metacritic_score "$metacritic_link")"
 if [ -z "$score" ]; then
     score=0
 fi
-echo "$score"
+printf '%s\t%s\n' "$metacritic_link" "$score"
