@@ -1,14 +1,87 @@
 #!/bin/sh
 
-touch scores.txt
-find [0-9]* -type l | while read game; do
-    name="$(basename "$game" | sed 's,\.app$,,; s,(.*),,g;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,;')"
-    if ! grep -qE "^$name\t" scores.txt; then
-        score_info="$(metacritic-score "$name")" || continue
-        score="$(echo "$score_info" | cut -d"	" -f2)"
-        if [ "$score" != "0" ]; then
-            printf '%s\t%s\n' "$game" "$score" | /usr/bin/tee -a scores.txt
+if [ $# -eq 0 ]; then
+    set -- [0-9]*
+fi
+
+critic_score () {
+    http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w span text{}'
+}
+
+critic_scores () {
+    http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w text{}' | tr '\n' '\t'
+}
+
+critic_search () {
+    metacritic_root="http://www.metacritic.com"
+    http --check-status --ignore-stdin "${metacritic_root}/search/game/$*/results" | pup 'a.col_left attr{href}' | sed "s,^,$metacritic_root," | sed -nE -e 's,(/game/pc/[^/]*)/?.*,\1,p'
+}
+
+base_url=http://www.metacritic.com/game/pc
+
+find "$@" -type l | while read game; do
+    base="$(basename "$game" | sed 's,\.app$,,')"
+    search_query="$(echo "$base" | sed 's,(.*),,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
+    toml="_metadata/$base.toml"
+    touch "$toml"
+
+    write=0
+    mc_game="$(toml-get metacritic.game <"$toml" 2>/dev/null)"
+    if [ $? -ne 0 ]; then
+        mc_game="$(echo "$search_query" | tr "[:upper:] " "[:lower:]-")"
+        if ! http --check-status --ignore-stdin -h "$base_url/$mc_game" >/dev/null 2>&1; then
+            mc_url="$(critic_search "$search_query" | head -n 1)" || continue
+            if [ -z "$mc_url" ]; then
+                # No search results found
+                mc_game="##invalid##"
+            else
+                mc_game="${mc_url#$base_url/}"
+                if [ "$mc_game" = "$mc_url" ]; then
+                    echo >&2 "Error: unrecognized metacritic url $mc_url for $mc_game ($game)"
+                    exit 1
+                fi
+            fi
         fi
-        sleep 1
+        write=1
+    fi
+
+    score="$(toml-get metacritic.score <"$toml" 2>/dev/null)"
+    user_score="$(toml-get metacritic.user_score <"$toml" 2>/dev/null)"
+    if [ -z "$score" ] || [ -z "$user_score" ]; then
+        write=1
+        scores="$(critic_scores "$base_url/$mc_game")"
+        if [ -z "$scores" ]; then
+            score="0"
+            user_score="0.0"
+        else
+            score="$(echo "$scores" | cut -d"	" -f1)"
+            user_score="$(echo "$scores" | cut -d"	" -f2)"
+            if [ "$score" = "tbd" ]; then
+                score="0"
+            fi
+            if [ "$user_score" = "tbd" ]; then
+                user_score="0.0"
+            fi
+        fi
+        sleep 2
+    fi
+
+    if [ "$mc_game" = "##invalid##" ]; then
+        imdb_ratings="$(./imdb-game-ratings "$search_query" 2>/dev/null)"
+        if [ -n "$imdb_ratings" ]; then
+            echo "$imdb_ratings"
+        fi
+    fi
+
+    printf "%s -> %s: %s, %.1f\n" "$game" "$mc_game" "$score" "$user_score"
+    if [ $write -eq 1 ]; then
+        if ! toml-get metacritic <"$toml" >/dev/null 2>&1; then
+            echo '[metacritic]' >>"$toml"
+        fi
+        cat "$toml" | \
+            toml-set-string metacritic.game "$mc_game" | \
+            toml-set metacritic.score "$score" | \
+            toml-set metacritic.user_score "$user_score" >"$toml.new" && \
+            mv "$toml.new" "$toml"
     fi
 done

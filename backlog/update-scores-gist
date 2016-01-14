@@ -1,0 +1,3 @@
+#!/bin/sh
+
+./list-scores | gist -u https://gist.github.com/kergoth/308942b0d04057fd0e1a -p -f metacritic-ratings-for-my-games.txt

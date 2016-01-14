@@ -1,0 +1,12 @@
+#!/bin/sh
+
+grep game\ = _metadata/* | \
+    grep -v '##invalid##' | \
+    sed 's,.*/,,; s,\.toml,,; s,:game = ,	,; s,",,g' | \
+    while IFS="	" read game mc_game; do
+        search_query="$(basename "$game" | sed 's,(.*),,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
+        calc_mc_game="$(echo "$search_query" | tr "[:upper:] " "[:lower:]-")"
+        if [ "$calc_mc_game" != "$mc_game" ]; then
+            printf '%s\t%s\n' "$game" "$mc_game"
+        fi
+    done

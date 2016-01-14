@@ -1,0 +1,42 @@
+#!/bin/sh
+
+imdb_rating_from_page () {
+    http --check-status --ignore-stdin "http://www.imdb.com/title/$1/" | pup 'span[itemprop="ratingValue"] text{}'
+}
+
+imdb_ratings () {
+    results="$(mktemp -t "${0##*/}.XXXXXX")" || exit 1
+    trap 'rm -f "$results"' EXIT INT TERM
+
+    http --check-status --ignore-stdin http://www.imdb.com/search/title title_type==game title=="$*" | \
+        pup '.results .title .rating-rating .value, .results .title > a json{}' | \
+        jq -r '.[] | [.href, .text] | join ("\t")' >"$results"
+
+    lines="$(wc -l <"$results" | sed "s, *,,")"
+    if [ "$lines" = "0" ]; then
+        echo >&2 "$* not found while searching imdb"
+        return 1
+    fi
+    half="$(expr "$lines" / 2)"
+    head -n "$half" "$results" >"$results.one"
+    tail -n "$half" "$results" >"$results.two"
+    paste "$results.one" "$results.two" | sed 's,^	,,' >"$results.new" && \
+        mv "$results.new" "$results"
+    cat "$results" | while IFS="	" read rating href name; do
+        href="${href%/}"
+        title_id="${href#/title/}"
+        printf '%s\t%s\t%s\n' "$(htmldecode "$name")" "$title_id" "$rating"
+    done
+    rm -f "$results"
+    trap - EXIT INT TERM
+}
+
+urldecode () {
+    python -c 'import urllib2,sys; print(urllib2.unquote(sys.argv[1]))' "$*"
+}
+
+htmldecode () {
+    python -c "import HTMLParser,sys; print(HTMLParser.HTMLParser().unescape(sys.argv[1]))" "$*"
+}
+
+imdb_ratings "$*"
