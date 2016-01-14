@@ -1,0 +1,13 @@
+#!/bin/sh
+
+touch scores.txt
+find [0-9]* -type l | while read game; do
+    name="$(basename "$game" | sed -e 's,\.app$,,; s, *(.*) *,,; s, *- *, ,;')"
+    if ! grep -q "^$name\t" scores.txt; then
+        score="$(metacritic-score "$name")" || continue
+        if [ "$score" != "0" ]; then
+            printf '%s\t%d\n' "$name" "$score" | /usr/bin/tee -a scores.txt
+        fi
+        sleep 1
+    fi
+done
