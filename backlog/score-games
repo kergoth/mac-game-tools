@@ -74,7 +74,7 @@ find "$@" -type l | while read game; do
             if [ "$score" = "tbd" ]; then
                 score="0"
             fi
-            if [ "$user_score" = "tbd" ]; then
+            if [ "$user_score" = "tbd" ] || [ -z "$user_score" ]; then
                 user_score="0.0"
             fi
         fi
