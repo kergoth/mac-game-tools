@@ -2,7 +2,7 @@
 
 set -e
 
-excluded_games='.*(Setup|Launcher|-64|Editor|((Original|Pending|Utilities|Obsolete|Replaced|Experimental.*|Archived.*)/))'
+excluded_games='.*(Setup|Launcher|-64|Editor|Apps|((Original|Pending|Utilities|Obsolete|Replaced|Experimental.*|Archived.*)/))'
 excluded_backlog='.*/By Tag/'
 excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves|Saved Games in Wrapper$'
 excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
