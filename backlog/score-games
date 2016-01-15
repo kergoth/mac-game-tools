@@ -17,6 +17,21 @@ critic_search () {
     http --check-status --ignore-stdin "${metacritic_root}/search/game/$*/results" | pup 'a.col_left attr{href}' | sed "s,^,$metacritic_root," | sed -nE -e 's,(/game/pc/[^/]*)/?.*,\1,p'
 }
 
+quiet=0
+while getopts qh opt; do
+    case "$opt" in
+        q)
+            quiet=1
+            ;;
+        \?|h)
+            echo >&2 "Usage: ${0##*/} [-q] PATH [PATH..]"
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+
 base_url=http://www.metacritic.com/game/pc
 
 find "$@" -type l | while read game; do
@@ -66,14 +81,16 @@ find "$@" -type l | while read game; do
         sleep 2
     fi
 
-    if [ "$mc_game" = "##invalid##" ]; then
-        imdb_ratings="$(./imdb-game-ratings "$search_query" 2>/dev/null)"
-        if [ -n "$imdb_ratings" ]; then
-            echo "$imdb_ratings"
-        fi
+    if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
+        # if [ "$mc_game" = "##invalid##" ]; then
+        #     imdb_ratings="$(./imdb-game-ratings "$search_query" 2>/dev/null)"
+        #     if [ -n "$imdb_ratings" ]; then
+        #         echo "$imdb_ratings"
+        #     fi
+        # fi
+        printf "%s -> %s: %s, %.1f\n" "$game" "$mc_game" "$score" "$user_score"
     fi
 
-    printf "%s -> %s: %s, %.1f\n" "$game" "$mc_game" "$score" "$user_score"
     if [ $write -eq 1 ]; then
         if ! toml-get metacritic <"$toml" >/dev/null 2>&1; then
             echo '[metacritic]' >>"$toml"
