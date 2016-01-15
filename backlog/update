@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 excluded_games='.*(Setup|Launcher|-64|Editor|((Original|Pending|Utilities|Obsolete|Replaced|Experimental.*|Archived.*)/))'
 excluded_backlog='.*/By Tag/'
 excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves|Saved Games in Wrapper$'
@@ -32,6 +34,8 @@ set -- \
     \
     "/Volumes/Games Archive"
 
-"$scriptdir/populate_backlog" "$@"
-rmdir "8 - Unsorted" 2>/dev/null
-"$scriptdir/populate_by_tag" -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
+./populate_backlog "$@"
+./populate_by_tag -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
+./update-gist
+./score-games -q [1-6]*
+./update-scores-gist
