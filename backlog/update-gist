@@ -1,18 +1,5 @@
 #!/bin/sh
 
-tmpfile="$(mktemp -t ${0##*/}.XXXXXX)"
-trap "rm -f \"$tmpfile\"" EXIT INT TERM
-
-if [ -h "$0" ]; then
-    scriptdir="$(cd "$(dirname "$0")" && cd "$(dirname "$(readlink "$0")")" && pwd)"
-    PATH="$scriptdir:$PATH"
-else
-    PATH="$(dirname "$0"):$PATH"
-fi
-cd "$(dirname "$0")"
-ls -d [0-9]*/ | grep -v 'Unsorted' | sort -n | tr '\n' '\0' | xargs -0 -n 1 lstree | sed 's,\.app$,,' >>"$tmpfile" || exit 1
-
-curl -s https://gist.githubusercontent.com/kergoth/4a96c92d64948d52a468/raw/games-backlog.txt | diff -urNd - "$tmpfile"
-if [ $? -ne 0 ] && [ "$1" != "-n" ]; then
-    gist -s -f games-backlog.txt -u 4a96c92d64948d52a468 "$tmpfile"
-fi
+ls -d [0-9]*/ | grep -v 'Unsorted' | sort -n | tr '\n' '\0' | \
+    xargs -0 -n 1 lstree | sed 's,\.app$,,' | \
+    update-gist-generic "$@" https://gist.github.com/kergoth/4a96c92d64948d52a468 games-backlog.txt
