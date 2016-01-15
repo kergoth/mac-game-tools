@@ -1,3 +1,4 @@
 #!/bin/sh
 
-./list-scores | gist -u https://gist.github.com/kergoth/308942b0d04057fd0e1a -p -f metacritic-ratings-for-my-games.txt
+PATH="$(dirname "$0"):$PATH" list-scores | \
+    update-gist-generic "$@" https://gist.github.com/kergoth/308942b0d04057fd0e1a metacritic-ratings-for-my-games-backlog.txt
