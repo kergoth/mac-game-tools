@@ -63,6 +63,7 @@ process_arguments () {
             if [ -d "$game/Game" ]; then
                 game_dir="$game/$(readlink "$game/Game")"
             else
+                echo >&2 "Error: Game symlink does not exist or is invalid"
                 usage
             fi
             ;;
