@@ -45,11 +45,12 @@ apptorun="$subdirname/${apppath##*/}"
 profile="$(echo "$appname"|sed 's, ,.,g'|tr A-Z a-z)"
 identifier="org.kergoth.subdirwrapper.$profile"
 
-new-app "$app"
+new-app "${app%.app}"
 cat <<END >"$app/Contents/MacOS/app"
-cd "\$(dirname "\$0")/../Resources/$subdirname"
+#!/bin/sh
+cd "\$(dirname "\$0")/../Resources"
 exec open -W "$apptorun" --args "\$@"
 END
 chmod +x "$app/Contents/MacOS/app"
-wrap-app -nr "$apptorun" "$appath" "$app"
+wrap-app -nr "$apptorun" "$apppath" "$app"
 cp -a "$subdir" "$app/Contents/Resources/"
