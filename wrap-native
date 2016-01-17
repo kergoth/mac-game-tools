@@ -156,6 +156,10 @@ END
     copymacicon "$1/Contents/Resources/$game_base" "$new_app"
 }
 
+locate_app_by_name () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '$*'"
+}
+
 locate_app_by_id () {
     mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
 }
@@ -295,9 +299,15 @@ relpath () {
 
 create_openmw_wrapper () {
     destdir="$1"
-    openmw="$(mdfind 'kMDItemDisplayName == "OpenMW"' | sed 's,$,/Contents/MacOS/OpenMW,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenMW,,')"
+    openmw="$(locate_app_by_name "OpenMW" | sed 's,$,/Contents/MacOS/OpenMW,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenMW,,')"
+    if [ -z "$openmw" ]; then
+        echo >&2 "Error: unable to locate OpenMW, please make it available."
+        return 1
+    fi
+    echo >&2 "OpenMW: $openmw"
+
     openmw_dir="$(dirname "$openmw")"
-    openmw_version="$(pb 'Print :CFBundleVersion' "$openmw/Contents/Info.plist")"
+    openmw_version="$(pb -c 'Print :CFBundleVersion' "$openmw/Contents/Info.plist")"
     openmw_base="OpenMW"
     if [ -n "$openmw_version" ]; then
         openmw_base="$openmw_base - $openmw_version"
