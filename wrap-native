@@ -135,6 +135,23 @@ END
             rm -f "$1/$extra_app"
             mv "$new_app" "$1/$extra_app"
         done
+
+    new_app="$1/${game_base%.app} (Original).app"
+    new-app "${new_app%.app}"
+    wrap-app -n -r "../../../Contents/Resources/$game_base" "$1/Contents/Resources/$game_base" "$new_app"
+    cat >"$new_app/Contents/MacOS/app" <<END
+#!/bin/sh
+
+(
+    tempdir="\$(mktemp -d -t "\${0##*/}.XXXXXX")"
+    trap 'rm -rf "\$tempdir"' EXIT INT TERM
+    wrapperdir="\$(cd "\$(dirname "\$0")/../../.." && pwd)"
+    ln -s "\$wrapperdir/Contents/Resources/$game_base" "\$tempdir/"
+    open -W "\$tempdir/$game_base" --args "\$@"
+) &
+END
+    chmod +x "$new_app/Contents/MacOS/app"
+    copymacicon "$1/Contents/Resources/$game_base" "$new_app"
 }
 
 locate_app_by_id () {
