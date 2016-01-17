@@ -96,6 +96,8 @@ game_type_from_dir () {
         echo dosbox
     elif [ -n "$(find "$1"/ -iname scummvm.exe)" ]; then
         echo scummvm
+    elif [ -e "$1/Morrowind.exe" ]; then
+        echo openmw
     fi
 }
 
@@ -289,6 +291,39 @@ common_prefix () {
 
 relpath () {
     python -c "import os, sys; print(os.path.relpath(*sys.argv[1:]))" "$@"
+}
+
+create_openmw_wrapper () {
+    destdir="$1"
+    openmw="$(mdfind 'kMDItemDisplayName == "OpenMW"' | sed 's,$,/Contents/MacOS/OpenMW,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenMW,,')"
+    openmw_dir="$(dirname "$openmw")"
+    openmw_base="$(basename "$openmw_dir")"
+    identifier="org.kergoth.openmw.$(adjust_identifier "$game_name")"
+    version="$openmw_base"
+
+    rm -rf "$destdir"
+    new-app -fr "$openmw_dir" "$destdir"
+    mv "$destdir.app" "$destdir"
+
+    wrap_app "$game" "$destdir"
+    ls >&2 "$destdir"
+    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
+        echo >&2 "Game doesn't exist in $destdir, aborting"
+        exit 12
+    fi
+    plist_set CFBundleIdentifier "$identifier" "$destdir/Contents/Info.plist"
+    plist_set CFBundleVersion "$version" "$destdir/Contents/Info.plist"
+
+    rm -rf "$destdir/Contents/Resources/$openmw_base/data"
+    ln -s "../$(basename "$game")/Game/Data Files" "$destdir/Contents/Resources/$openmw_base/data"
+    ln -sf ../Morrowind.ini "$destdir/Contents/Resources/$openmw_base/data/"
+
+    cat <<END >"$destdir/Contents/MacOS/app"
+#!/bin/sh
+cd "\$(dirname "\$0")/../Resources"
+exec open -W "$openmw_base/$(basename "$openmw")" --args "\$@"
+END
+    chmod +x "$destdir/Contents/MacOS/app"
 }
 
 create_scummvm_wrapper () {
