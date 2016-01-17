@@ -71,7 +71,8 @@ fi
 
 from_app="$1"
 if [ ! -e "$from_app" ]; then
-    die "$from_app does not exist"
+    echo >&2 "$from_app does not exist"
+    exit 1
 fi
 
 to_app="$2"
