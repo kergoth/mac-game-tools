@@ -306,7 +306,6 @@ create_openmw_wrapper () {
     mv "$destdir.app" "$destdir"
 
     wrap_app "$game" "$destdir"
-    ls >&2 "$destdir"
     if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
         echo >&2 "Game doesn't exist in $destdir, aborting"
         exit 12
