@@ -297,13 +297,20 @@ create_openmw_wrapper () {
     destdir="$1"
     openmw="$(mdfind 'kMDItemDisplayName == "OpenMW"' | sed 's,$,/Contents/MacOS/OpenMW,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenMW,,')"
     openmw_dir="$(dirname "$openmw")"
-    openmw_base="$(basename "$openmw_dir")"
+    openmw_version="$(pb 'Print :CFBundleVersion' "$openmw/Contents/Info.plist")"
+    openmw_base="OpenMW"
+    if [ -n "$openmw_version" ]; then
+        openmw_base="$openmw_base - $openmw_version"
+    fi
     identifier="org.kergoth.openmw.$(adjust_identifier "$game_name")"
     version="$openmw_base"
 
     rm -rf "$destdir"
     new-app -fr "$openmw_dir" "$destdir"
     mv "$destdir.app" "$destdir"
+    if [ "$(basename "$openmw_dir")" != "$openmw_base" ]; then
+        mv "$destdir/Contents/Resources/$(basename "$openmw_dir")" "$destdir/Contents/Resources/$openmw_base"
+    fi
 
     wrap_app "$game" "$destdir"
     if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
