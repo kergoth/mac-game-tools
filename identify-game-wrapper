@@ -64,6 +64,8 @@ identify_game_wrapper () {
         echo "gemrb"
     elif [ -e "$game/Contents/MacOS/Doomsday" ]; then
         echo "doomsday"
+    elif [ -e "$game/Contents/MacOS/GZDoom" ]; then
+        echo "gzdoom"
     elif [ -e "$game/__Installer/installerdata.xml" ]; then
         echo "origin"
     elif [ -e "$game/Contents/Resources/snes9x" ]; then
