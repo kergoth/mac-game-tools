@@ -358,6 +358,13 @@ create_scummvm_wrapper () {
 
     rm -rf "$destdir/Contents/Resources/game"
     ln -s "$game_base/Game" "$destdir/Contents/Resources/game"
+
+    case "$scummvm_game_id" in
+        zgi)
+            curl -s https://fedorahosted.org/releases/l/i/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz | \
+                ( cd "$destdir/Contents/Resources" && tar -zx --strip-components=1 -f - )
+            ;;
+    esac
 }
 
 get_scummvm_game_id () {
