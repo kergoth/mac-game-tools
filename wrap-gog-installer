@@ -1,25 +1,5 @@
 #!/bin/sh
 
-installer_get_type () {
-    installer="$1"
-    if [ -d "$installer" ]; then
-        installer="$(ls -1rt "$installer"/setup_*.exe | head -n 1)"
-        if [ -z "$installer" ]; then
-            return 1
-        fi
-    fi
-
-    innoextract -gLml "$installer" | sed -Ene 's/.*\/(dosbox|scummvm)\.exe.*/\1/p'
-}
-
-plist_set () {
-    pb -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3/Contents/Info.plist"
-}
-
-pb () {
-    PlistBuddy "$@"
-}
-
 wrap_installer () {
     wrap_exe="$1"
     wrap_out="$2"
@@ -36,48 +16,8 @@ wrap_installer () {
     fi
 }
 
-game_id_map () {
-    cat <<END
-t7g     The 7th Guest
-rtz-cd  Return to Zork
-END
-#dreamweb-cd-us Dreamweb
-}
-
-get_game_id () {
-    _game="$1"
-    _directory="$2"
-    game_id_name="$(echo "$_game" | sed 's/ - /: /')"
-    game_id="$(sed -n "s#^\([^ ]*\) *$game_id_name\$#\1#p" "$wrapper_template/Contents/Resources/GameIDs.txt")" || true
-    if [ -z "$game_id" ]; then
-        vol=$(find "$_directory" -iname "object" -maxdepth 1)
-        if [ -e "$vol" ]; then
-            log "Assuming AGI engine"
-            game_id=agi
-        fi
-
-        resource=$(find "$_directory" -iname "resource.map" -maxdepth 1)
-        if [ -e "$resource" ]; then
-            log "Assuming SCI engine"
-            game_id=sci
-        fi
-
-        mapped=$(game_id_map | sed -n "s#^\([^ ]*\) *$game_id_name\$#\1#p")
-        if [ -n "$mapped" ]; then
-            game_id=$mapped
-        fi
-
-        if [ -z "$game_id" ]; then
-            echo >&2 "Error: unknown game ID for $_game, aborting"
-            return 1
-        fi
-    fi
-    echo "$game_id"
-}
-
-
 if [ $# -eq 0 ]; then
-    echo >&2 "Usage: ${0##*/} GOG_INSTALLER [SCUMMVM_GAME_ID]"
+    echo >&2 "Usage: ${0##*/} GOG_INSTALLER"
     exit 2
 fi
 
@@ -98,15 +38,5 @@ echo >&2 "Creating $app_name"
 tmp="$(mktemp -d "${0##*/}.XXXXXX")"
 rmdir "$tmp"
 trap 'rm -rf "$tmp"' EXIT INT TERM
-
-case "$(installer_get_type "$installer")" in
-    scummvm)
-        #game_id="${2:-$(get_game_id "game_name" "$gamedir")}"
-        ;;
-    dosbox)
-        ;;
-    *)
-        ;;
-esac
 
 wrap_installer "$installer" "$tmp" "$game_name"
