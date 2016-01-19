@@ -356,8 +356,11 @@ create_scummvm_wrapper () {
     destdir="$1"
 
     if [ -z "$scummvm_game_id" ]; then
-        echo >&2 "Error: unknown scummvm game id, please specify"
-        return 1
+        scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
+        if [ -z "$scummvm_game_id" ]; then
+            echo >&2 "Error: unknown scummvm game id, please specify"
+            return 1
+        fi
     fi
 
     cp -a "$scummvm_wrapper_template/." "$destdir/"
@@ -427,16 +430,19 @@ PATH="$scriptdir:$PATH:/usr/libexec"
 
 process_arguments "$@"
 
-if [ -z "$scummvm_game_id" ]; then
-    scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
-fi
-
 if [ -z "$game_type" ]; then
-    if [ -n "$scummvm_game_id" ]; then
-        game_type=scummvm
-    else
-        game_type="$(game_type_from_dir "$game_dir")"
-        if [ -z "$game_type" ]; then
+    game_type_info="$(game_type_from_dir "$game_dir")"
+    game_type="$(echo "$game_type_info" | cut -d"	" -f1)"
+    if [ -z "$scummvm_game_id" ]; then
+        scummvm_game_id="$(echo "$game_type_info" | cut -d"	" -f2)"
+    fi
+    if [ -z "$game_type" ]; then
+        if [ -z "$scummvm_game_id" ]; then
+            scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
+        fi
+        if [ -n "$scummvm_game_id" ]; then
+            game_type=scummvm
+        else
             echo >&2 "Error: unknown game type for $game, please specify"
             exit 3
         fi
