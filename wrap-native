@@ -408,12 +408,6 @@ get_scummvm_game_id () {
         if [ -n "$mapped" ]; then
             scummvm_game_id=$mapped
         fi
-
-        scummvm_game_id="$("$scummvm_wrapper_template/Contents/MacOS/scummvm" -z | tail -n +3 | sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p")"
-        if [ -z "$scummvm_game_id" ]; then
-            echo >&2 "Error: unknown game ID for $_game, aborting"
-            return 1
-        fi
     fi
     echo $scummvm_game_id
 }
