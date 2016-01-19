@@ -424,7 +424,7 @@ if [ -z "$game_type" ]; then
 fi
 
 if [ $copy_wrapper -eq 1 ]; then
-    new_game="${game%.app} New.app"
+    new_game="${game%.app} Native.app"
     if [ -e "$new_game" ]; then
         echo >&2 "Error: $new_game already exists, aborting"
     fi
