@@ -17,9 +17,10 @@ usage () {
     echo >&2
     echo >&2 "Options:"
     echo >&2
-    echo >&2 "  -n NEW_GAME         Specify the name of the new .app"
+    echo >&2 "  -N NEW_GAME         Specify the name of the new .app"
     echo >&2 "  -s scummvm_game_id  Specify ScummVM game ID for the scummvm type"
-    echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name."
+    echo >&2 "  -n                  Dry-run. Print what would be done"
+    echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name"
     echo >&2
     echo >&2 "Ex:"
     echo >&2
@@ -30,15 +31,19 @@ usage () {
 
 process_arguments () {
     scummvm_game_id=
-    copy_wrapper=0
     new_game=
-    while getopts s:ch opt; do
+    dry_run=0
+    copy_wrapper=0
+    while getopts s:N:nch opt; do
         case "$opt" in
             s)
                 scummvm_game_id="$OPTARG"
                 ;;
-            n)
+            N)
                 new_game="${OPTARG%.app}.app"
+                ;;
+            n)
+                dry_run=1
                 ;;
             c)
                 copy_wrapper=1
@@ -453,6 +458,10 @@ printf 'Game: %s\n' "$game"
 printf 'Game dir: %s\n' "$game_dir"
 printf 'Game type: %s\n' "$game_type"
 printf 'New Game Path: %s\n' "$new_game"
+
+if [ $dry_run -eq 1 ]; then
+    exit 0
+fi
 
 tmp="$(mktemp -d "${0##*/}.XXXXXX")"
 trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then mv "$tmp/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
