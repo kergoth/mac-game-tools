@@ -17,6 +17,7 @@ usage () {
     echo >&2
     echo >&2 "Options:"
     echo >&2
+    echo >&2 "  -n NEW_GAME         Specify the name of the new .app"
     echo >&2 "  -s scummvm_game_id  Specify ScummVM game ID for the scummvm type"
     echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name."
     echo >&2
@@ -30,10 +31,14 @@ usage () {
 process_arguments () {
     scummvm_game_id=
     copy_wrapper=0
+    new_game=
     while getopts s:ch opt; do
         case "$opt" in
             s)
                 scummvm_game_id="$OPTARG"
+                ;;
+            n)
+                new_game="${OPTARG%.app}.app"
                 ;;
             c)
                 copy_wrapper=1
@@ -430,18 +435,21 @@ if [ -z "$game_type" ]; then
     fi
 fi
 
+if [ -z "$new_game" ]; then
+    new_game="$game"
+fi
+
 if [ $copy_wrapper -eq 1 ]; then
     new_game="${game%.app} Native.app"
     if [ -e "$new_game" ]; then
         echo >&2 "Error: $new_game already exists, aborting"
     fi
-else
-    new_game="$game"
 fi
 
 printf 'Game: %s\n' "$game"
 printf 'Game dir: %s\n' "$game_dir"
 printf 'Game type: %s\n' "$game_type"
+printf 'New Game Path: %s\n' "$new_game"
 
 tmp="$(mktemp -d "${0##*/}.XXXXXX")"
 trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then mv "$tmp/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
