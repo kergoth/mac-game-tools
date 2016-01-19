@@ -124,10 +124,12 @@ for game; do
     fi
     mkdir -p Extras
 
-    infofile="$(find "$gamedir" -name goggame-\*.info -maxdepth 1)"
-    if [ -z "$infofile" ]; then
+    if [ $(find "$gamedir" -maxdepth 1 -iname goggame-\*.info | wc -l) -eq 0 ]; then
         die "No goggame-*.info found in the game directory '$gamedir'" 4
     fi
+
+    game_id="$(jq -rs 'map(select(.gameId == .rootGameId)) | .[0].gameId' "$gamedir"/goggame-*.info)"
+    infofile="$gamedir/goggame-$game_id.info"
 
     icon="${infofile%.info}.ico"
     configure_icon "$icon" .
