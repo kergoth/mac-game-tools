@@ -368,6 +368,9 @@ create_scummvm_wrapper () {
         zgi)
             curl -s https://fedorahosted.org/releases/l/i/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz | \
                 ( cd "$destdir/Contents/Resources" && tar -zx --strip-components=1 -f - )
+
+            # This game runs in a resolution such that advmame3x won't work
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
             ;;
     esac
 }
