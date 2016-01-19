@@ -13,4 +13,4 @@ find_app_symlinks_resolved () {
     fi
     find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
     find_app_symlinks_resolved /Volumes/Games\ Archive/Games*/
-} | grep -Ev '\.Trashes|Utilities|Archived|Pending|Backup' | sed 's,//,/,g' | sort -u
+} | grep -Ev '\.Trashes|Utilities|Apps|Archived|Experimental|Replaced|Pending|Backup' | sed 's,//,/,g' | sort -u

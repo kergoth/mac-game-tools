@@ -23,6 +23,6 @@ PATH="${0%/*}:$PATH"
     find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type d -print | grep -Ev 'Setup|Launcher|-64'
     find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type l -print
     find /Volumes/My\ Passport/OpenEmu\ Library/roms/ -type f -not -name .DS_Store
-} | sed 's,//,/,g' | grep -Ev '\.Trashes|Archived|Pending|Backup|Replaced|Utilities' | \
+} | sed 's,//,/,g' | grep -Ev '\.Trashes|Archived|Pending|Backup|Replaced|Utilities|Apps|Experimental|Replaced|Obsolete' | \
     tr '\n' '\0' | xargs -0 identify-game-wrapper | sed 's,.unknown$,,' | \
     sed 's,/Volumes/[^/]*/,,; s,OpenEmu Library/roms/,OpenEmu/,; s,^games,Games,; s,- broken,- Broken,;' | sort -u
