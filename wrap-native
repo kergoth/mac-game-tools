@@ -464,6 +464,10 @@ printf 'Game: %s\n' "$game"
 printf 'Game dir: %s\n' "$game_dir"
 printf 'Game type: %s\n' "$game_type"
 printf 'New Game Path: %s\n' "$new_game"
+if [ -n "$scummvm_game_id" ]; then
+    printf 'ScummVM Game ID: %s\n' "$scummvm_game_id"
+fi
+
 
 if [ $dry_run -eq 1 ]; then
     exit 0
