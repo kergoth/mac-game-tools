@@ -108,6 +108,9 @@ game_type_from_dir () {
         echo scummvm
     elif [ -e "$1/Morrowind.exe" ]; then
         echo openmw
+    elif [ -e "$1/scripts.zfs" ]; then
+        # ZGI
+        printf "scummvm\tzgi\n"
     fi
 }
 
