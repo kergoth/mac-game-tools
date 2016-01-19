@@ -141,7 +141,7 @@ for game; do
     exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1)"
     exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
 
-    name="$(jq '.name' "$infofile" | sed 's,^",,; s,"$,,')"
+    name="$(jq -r '.name' "$infofile" | sed 's,   *, ,g')"
     if [ -n "$name" ]; then
         plist_set CFBundleName "$name" Contents/Info.plist
         plist_set CFBundleDisplayName "$name" Contents/Info.plist
