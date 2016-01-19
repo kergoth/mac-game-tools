@@ -449,3 +449,4 @@ if [ -e "$new_game" ]; then
     exit 5
 fi
 mv "$tmp" "$new_game"
+printf >&2 'Created `%s`\n' "$new_game"
