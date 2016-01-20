@@ -1,0 +1,16 @@
+#!/bin/sh
+
+find-all-games 2>/dev/null | tr '\n' '\0' | xargs -0 identify-game-wrapper | \
+    while IFS="$(printf '\t')" read game type; do
+        if [ ! -d "$game" ] && [ ! -L "$game" ]; then
+            continue
+        fi
+
+        if [ ! -e "$game/Game" ]; then
+            rm -f "$game/Game"
+            auto_gamedir="$(get-gamedir "$game")"
+            if [ -n "$auto_gamedir" ]; then
+                ln -s "$auto_gamedir" "$game/Game"
+            fi
+        fi
+    done
