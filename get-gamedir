@@ -1,0 +1,48 @@
+#!/bin/bash
+
+relpath () {
+    python -c "import os, sys; print(os.path.relpath(*sys.argv[1:]))" "$@"
+}
+
+game="$1"
+type="${2:-$(identify-game-wrapper "$game")}"
+
+exclude_game="$game"
+if [ "$type" = "windows (wineskin)" ]; then
+    if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
+        # Grab underlying app
+        exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
+    fi
+
+    gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
+        printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
+        continue
+    }
+    gamedir="${gameexe%/*}"
+    if [ -e "$exclude_game/drive_c" ]; then
+        drive="$exclude_game/drive_c"
+    else
+        drive="$exclude_game/Contents/Resources/drive_c"
+    fi
+elif [ "$type" = "windows (cider)" ]; then
+    gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || continue
+    gamedir="${gamedir#C:}"
+    gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
+    drive="$game/Contents/Resources/transgaming/c_drive"
+else
+    exit 1
+#     echo >&2 "Error: No 'Game' symlink for '$game', unable to determine gamedir for type '$type', skipping"
+#     :
+fi
+if [ -z "$drive" ]; then
+    echo >&2 "Error: drive is empty?"
+fi
+if [ -z "$gamedir" ]; then
+    echo >&2 "Error: gamedir is empty?"
+fi
+drive="$(relpath "$drive" "$game")"
+gamedir="${gamedir#/}"
+if [ "$gamedir" = "Program Files/Steam" ]; then
+    gamedir="$(cd "$game/$drive" && find "$gamedir/SteamApps/common" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
+fi
+echo "$drive/$gamedir"
