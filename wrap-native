@@ -532,6 +532,9 @@ PATH="$scriptdir:$PATH:/usr/libexec"
 
 process_arguments "$@"
 
+printf 'Game: %s\n' "$game"
+printf 'Game dir: %s\n' "$game_dir"
+
 scummvm_wrapper_template="$(locate_app_by_id com.dotalux.scummwrapper.svwlauncher | sed 's,$,/Contents/MacOS/scummvm,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/scummvm$,,')"
 if [ -z "$game_type" ]; then
     game_type_info="$(game_type_from_dir "$game_dir")"
@@ -546,6 +549,7 @@ if [ -z "$game_type" ]; then
 elif [ "$game_type" = "scummvm" ]; then
     scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir") || true
 fi
+printf 'Game type: %s\n' "$game_type"
 
 if [ -z "$new_game" ]; then
     new_game="$game"
@@ -558,9 +562,6 @@ if [ $copy_wrapper -eq 1 ]; then
     fi
 fi
 
-printf 'Game: %s\n' "$game"
-printf 'Game dir: %s\n' "$game_dir"
-printf 'Game type: %s\n' "$game_type"
 printf 'New Game Path: %s\n' "$new_game"
 if [ -n "$scummvm_game_id" ]; then
     printf 'ScummVM Game ID: %s\n' "$scummvm_game_id"
