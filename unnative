@@ -25,4 +25,5 @@ for game; do
     trap 'rm -rf "$tmp"' EXIT INT TERM
     mv "$game" "$tmp/"
     mv "$tmp/${original#$games_dir/}" "$games_dir/"
+    rm -rf "$tmp"
 done
