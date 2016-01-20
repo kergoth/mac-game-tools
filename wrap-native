@@ -154,6 +154,8 @@ game_type_from_dir () {
             game_type=dosbox
         elif [ -n "$(find "$1"/ -iname scummvm.exe)" ]; then
             game_type=scummvm
+        elif [ -n "$(find "$1"/ -iname rct2.exe -maxdepth 1)" ]; then
+            game_type=openrct2
         elif [ -e "$1/Morrowind.exe" ]; then
             game_type=openmw
         elif [ -e "$1/scripts.zfs" ]; then
@@ -402,6 +404,44 @@ create_openmw_wrapper () {
 #!/bin/sh
 cd "\$(dirname "\$0")/../Resources"
 exec open -W "$openmw_base/$(basename "$openmw")" --args "\$@"
+END
+    chmod +x "$destdir/Contents/MacOS/app"
+}
+
+create_openrct2_wrapper () {
+    destdir="$1"
+    openrct2="$(locate_app_by_id "website.openrct2.OpenRCT2" | sed 's,$,/Contents/MacOS/OpenRCT2,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenRCT2,,')"
+    if [ -z "$openrct2" ]; then
+        echo >&2 "Error: unable to locate OpenRCT2, please make it available."
+        return 1
+    fi
+    echo >&2 "OpenRCT2: $openrct2"
+
+    rm -rf "$destdir"
+    new-app -f "$destdir"
+    mv "$destdir.app" "$destdir"
+
+    cp -a "$openrct2" "$destdir/"
+    wrap_app "$game" "$destdir"
+    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
+        echo >&2 "Game doesn't exist in $destdir, aborting"
+        exit 12
+    fi
+
+    newgame="$destdir/Contents/Resources/$game_base"
+    gamedir="$newgame/$(readlink "$newgame/Game")"
+    rm -f "$destdir/Game"
+    mv "$gamedir" "$destdir/Game"
+    lnr "$destdir/Game" "$gamedir"
+
+    identifier="org.kergoth.openrct2.$(adjust_identifier "$game_name")"
+    plist_set CFBundleIdentifier "$identifier" "$destdir/Contents/Info.plist"
+
+    cat <<END >"$destdir/Contents/MacOS/app"
+#!/bin/sh
+cd "\$(dirname "\$0")/../.."
+./OpenRCT2.app/Contents/MacOS/OpenRCT2 set-rct2 Game
+exec ./OpenRCT2.app/Contents/MacOS/OpenRCT2 "\$@"
 END
     chmod +x "$destdir/Contents/MacOS/app"
 }
