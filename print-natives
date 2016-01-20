@@ -6,31 +6,14 @@ trap 'rm -f "$tempfile"' EXIT INT TERM
 
 PATH="$(cd "$(dirname "$0")" && pwd):$PATH"
 find . -iname \*.app -prune | while read app; do
-    if [ ! -e "$app/Wineskin.app" ]; then
-        # Not a wine wrapper, skip
-        continue
-    fi
-
     game_base="${app##*/}"
     if [ -e "$app/Contents/Resources/$game_base" ]; then
         # Already native, skip
         continue
     fi
 
-    if [ ! -e "$app/Game" ]; then
-        continue
+    wrap-native -n "$app" >"$tempfile" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        printf '%s: %s\n' "$app" "$(sed -En 's/(Game type|ScummVM Game ID): //p' "$tempfile" | tr '\n' ' ')"
     fi
-
-    wrap-native -n "$app" >"$tempfile"
-    case "$?" in
-        3)
-            # Unsupported
-            ;;
-        0)
-            printf '%s: %s\n' "$app" "$(sed -En 's/(Game type|ScummVM Game ID): //p' "$tempfile" | tr '\n' ' ')"
-            ;;
-        *)
-            echo >&2 "Error running wrap-native on $app"
-            ;;
-    esac
 done 2>&1 | grep -v 'unknown game type'
