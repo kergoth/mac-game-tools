@@ -1,27 +1,28 @@
 #!/bin/sh
 
 alias mv="mv -v"
-game="$1"
-game_base="${game##*/}"
-if ! [ -e "$game/Contents/Resources/$game_base" ]; then
-    echo >&2 "Error: unrecognized native game $game"
-    exit 1
-fi
+for game; do
+    game_base="${game##*/}"
+    if ! [ -e "$game/Contents/Resources/$game_base" ]; then
+        echo >&2 "Warning: unrecognized native game $game"
+        continue
+    fi
 
-original="$game/Contents/Resources/$game_base"
-if [ -h "$original/Game" ]; then
-    orig_game_dir="$original/$(readlink "$original/Game")"
-    if [ -h "$orig_game_dir" ]; then
-        real_game_dir="${orig_game_dir%/*}/$(readlink "$orig_game_dir")"
-        if [ -e "$real_game_dir" ]; then
-            rm -f "$orig_game_dir.old"
-            mv "$orig_game_dir" "$orig_game_dir.old"
-            mv "$real_game_dir" "$orig_game_dir"
+    original="$game/Contents/Resources/$game_base"
+    if [ -h "$original/Game" ]; then
+        orig_game_dir="$original/$(readlink "$original/Game")"
+        if [ -h "$orig_game_dir" ]; then
+            real_game_dir="${orig_game_dir%/*}/$(readlink "$orig_game_dir")"
+            if [ -e "$real_game_dir" ]; then
+                rm -f "$orig_game_dir.old"
+                mv "$orig_game_dir" "$orig_game_dir.old"
+                mv "$real_game_dir" "$orig_game_dir"
+            fi
         fi
     fi
-fi
-games_dir="$(dirname "$game")"
-tmp="$(mktemp -d "$games_dir/${0##*/}.XXXXXX")"
-trap 'rm -rf "$tmp"' EXIT INT TERM
-mv "$game" "$tmp/"
-mv "$tmp/${original#$games_dir/}" "$games_dir/"
+    games_dir="$(dirname "$game")"
+    tmp="$(mktemp -d "$games_dir/${0##*/}.XXXXXX")"
+    trap 'rm -rf "$tmp"' EXIT INT TERM
+    mv "$game" "$tmp/"
+    mv "$tmp/${original#$games_dir/}" "$games_dir/"
+done
