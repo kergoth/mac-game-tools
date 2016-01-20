@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # TODO: consider symlinking the icon rather than copying
 # TODO: obey goggame-*.info for the dosbox launcher configurations
@@ -93,6 +93,10 @@ plist_set () {
     pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
 }
 
+plist_add () {
+    pb -c "Add '$(pb_escape_value "$1")' "${4:-string}" '$(pb_escape_value "$2")'" "$3"
+}
+
 pb () {
     PlistBuddy "$@"
 }
@@ -102,16 +106,63 @@ pb_escape_value () {
 }
 
 game_type_from_dir () {
-    if [ -n "$(find "$1"/ -iname dosbox.exe)" ]; then
-        echo dosbox
-    elif [ -n "$(find "$1"/ -iname scummvm.exe)" ]; then
-        echo scummvm
-    elif [ -e "$1/Morrowind.exe" ]; then
-        echo openmw
-    elif [ -e "$1/scripts.zfs" ]; then
-        # ZGI
-        printf "scummvm\tzgi\n"
+    local game_type
+    local scummvm_game_id
+
+    case "$game_name" in
+        *Incredible\ Machine*)
+            scummvm_game_id=
+            ;;
+        *)
+            if [ "$game_name" = "King's Quest 7 - The Princeless Bride" ] || \
+               [ "$game_name" = "Police Quest - SWAT" ] || \
+               [ "$game_name" = "Quest for Glory 4 - Shadows of Darkness" ] || \
+               [ "$game_name" = "Roberta Williams' Phantasmagoria" ] || \
+               [ "$game_name" = "Space Quest 6 - Roger Wilco in the Spinal Frontier" ] || \
+               [ "$game_name" = "Betrayal at Krondor" ] || \
+               [ -n "$(find "$1"/ -iname gk1.gog)" ] || \
+               [ -n "$(find "$1"/ -iname gk2dos.bat)" ] || \
+               [ -n "$(find "$1"/ -iname express.exe)" ] || \
+               [ -n "$(find "$1"/ -iname torin.exe)" ] ; then
+                # Unsupported by scummvm
+                scummvm_game_id=
+            else
+                scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir") || true
+                case "$scummvm_game_id" in
+                    kq1*|kq4*|pq1*|sq1*)
+                        scummvm_game_id="${scummvm_game_id%sci}"
+                        if [ -n "$(find "$game_dir/" -iname "resource.map" -maxdepth 1)" ]; then
+                            scummvm_game_id="${scummvm_game_id}sci"
+                        fi
+                        ;;
+                    qfg1*)
+                        scummvm_game_id="${scummvm_game_id%vga}"
+                        if [ -n "$(find "$game_dir/" -iname "resource.map" -maxdepth 1)" ]; then
+                            scummvm_game_id="${scummvm_game_id}vga"
+                        fi
+                        ;;
+                esac
+            fi
+            ;;
+    esac
+
+
+    if [ -n "$scummvm_game_id" ]; then
+        game_type=scummvm
+    else
+        if [ -n "$(find "$1"/ -iname dosbox.exe -o -iname dos4gw.exe)" ]; then
+            game_type=dosbox
+        elif [ -n "$(find "$1"/ -iname scummvm.exe)" ]; then
+            game_type=scummvm
+        elif [ -e "$1/Morrowind.exe" ]; then
+            game_type=openmw
+        elif [ -e "$1/scripts.zfs" ]; then
+            # ZGI
+            game_type=scummvm
+            scummvm_game_id=zgi
+        fi
     fi
+    printf '%s\t%s\n' "$game_type" "$scummvm_game_id"
 }
 
 adjust_identifier () {
@@ -214,7 +265,7 @@ create_boxer () {
     mkdir -p "$boxer"
     mkdir -p "$boxer/Documentation"
 
-    pb -c "Add BXGameIdentifier string $identifier" "$boxer/Game Info.plist"
+    plist_add BXGameIdentifier "$identifier" "$boxer/Game Info.plist"
     pb -c "Add BXGameIdentifierType integer 3" "$boxer/Game Info.plist"
     pb -c "Add BXLaunchers array" "$boxer/Game Info.plist"
 
@@ -287,8 +338,8 @@ END
         sed -ne '/^\[autoexec\]/q; p' "$game_dir/$autoexec_conf" >>"$boxer/DOSBox Preferences.conf"
 
         pb -c "Add BXLaunchers:$count dict" "$boxer/Game Info.plist"
-        pb -c "Add BXLaunchers:$count:BXLauncherPath string C.harddisk/$launch" "$boxer/Game Info.plist"
-        pb -c "Add BXLaunchers:$count:BXLauncherTitle string '$(pb_escape_value "$title")'" "$boxer/Game Info.plist"
+        plist_add "BXLaunchers:$count:BXLauncherPath" "C.harddisk/$launch" "$boxer/Game Info.plist"
+        plist_add "BXLaunchers:$count:BXLauncherTitle" "$title" "$boxer/Game Info.plist"
 
         conf_dir="$(dirname "$autoexec_conf")"
         >"$game_dir/$launch"
@@ -359,12 +410,19 @@ create_scummvm_wrapper () {
     destdir="$1"
 
     if [ -z "$scummvm_game_id" ]; then
-        scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
+        scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir") || true
         if [ -z "$scummvm_game_id" ]; then
             echo >&2 "Error: unknown scummvm game id, please specify"
             return 1
         fi
     fi
+
+    case "$scummvm_game_id" in
+        agi|sci)
+            echo >&2 "Error: use of generic game id '$scummvm_game_id' for '$game'"
+            return 2
+            ;;
+    esac
 
     cp -a "$scummvm_wrapper_template/." "$destdir/"
 
@@ -384,13 +442,21 @@ create_scummvm_wrapper () {
             plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
             ;;
     esac
+    case "$game_name" in
+        "King's Quest 7 - The Princeless Bride")
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
+            ;;
+        "Police Quest - SWAT")
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
+            ;;
+    esac
 }
 
 get_scummvm_game_id () {
     _game="$1"
     _directory="$2"
     scummvm_game_id_name="$(echo "$_game" | sed 's/ - /: /')"
-    scummvm_game_id="$(sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p" "$scummvm_wrapper_template/Contents/Resources/GameIDs.txt")" || true
+    scummvm_game_id="$(grep -i "  *$scummvm_game_id_name\$" <"$scummvm_wrapper_template/Contents/Resources/GameIDs.txt" <"$scriptdir/Extra_GameIDs.txt" | sed -n "s#^\([^ ]*\).*#\1#p" | head -n 1)"
     if [ -z "$scummvm_game_id" ]; then
         vol=$(find "$_directory/" -iname object -maxdepth 1)
         if [ -e "$vol" ]; then
@@ -422,28 +488,23 @@ END
 
 
 scriptdir="$(cd "$(dirname "$0")" && pwd)"
-scummvm_wrapper_template="$(locate_app_by_id com.dotalux.scummwrapper.svwlauncher | sed 's,$,/Contents/MacOS/scummvm,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/scummvm$,,')"
 PATH="$scriptdir:$PATH:/usr/libexec"
 
 process_arguments "$@"
 
+scummvm_wrapper_template="$(locate_app_by_id com.dotalux.scummwrapper.svwlauncher | sed 's,$,/Contents/MacOS/scummvm,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/scummvm$,,')"
 if [ -z "$game_type" ]; then
     game_type_info="$(game_type_from_dir "$game_dir")"
     game_type="$(echo "$game_type_info" | cut -d"	" -f1)"
+    if [ -z "$game_type" ]; then
+            echo >&2 "Error: unknown game type for $game, please specify"
+            exit 3
+    fi
     if [ -z "$scummvm_game_id" ]; then
         scummvm_game_id="$(echo "$game_type_info" | cut -d"	" -f2)"
     fi
-    if [ -z "$game_type" ]; then
-        if [ -z "$scummvm_game_id" ]; then
-            scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir" 2>/dev/null) || true
-        fi
-        if [ -n "$scummvm_game_id" ]; then
-            game_type=scummvm
-        else
-            echo >&2 "Error: unknown game type for $game, please specify"
-            exit 3
-        fi
-    fi
+elif [ "$game_type" = "scummvm" ]; then
+    scummvm_game_id=$(get_scummvm_game_id "$game_name" "$game_dir") || true
 fi
 
 if [ -z "$new_game" ]; then
