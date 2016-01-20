@@ -456,7 +456,7 @@ get_scummvm_game_id () {
     _game="$1"
     _directory="$2"
     scummvm_game_id_name="$(echo "$_game" | sed 's/ - /: /')"
-    scummvm_game_id="$(grep -i "  *$scummvm_game_id_name\$" <"$scummvm_wrapper_template/Contents/Resources/GameIDs.txt" <"$scriptdir/Extra_GameIDs.txt" | sed -n "s#^\([^ ]*\).*#\1#p" | head -n 1)"
+    scummvm_game_id="$(grep -i "   *$scummvm_game_id_name\$" <"$scummvm_wrapper_template/Contents/Resources/GameIDs.txt" <"$scriptdir/Extra_GameIDs.txt" | sed -n "s#^\([^ ]*\).*#\1#p" | head -n 1)"
     if [ -z "$scummvm_game_id" ]; then
         vol=$(find "$_directory/" -iname object -maxdepth 1)
         if [ -e "$vol" ]; then
