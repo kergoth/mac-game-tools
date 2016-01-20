@@ -70,11 +70,22 @@ process_arguments () {
 
     case "$game" in
         *.app)
-            if [ -d "$game/Game" ]; then
-                game_dir="$game/$(readlink "$game/Game")"
+            _game="$game"
+            if [ -e "$game/Contents/MacOS/GOGLauncher" ]; then
+                wrapped_game="$(find "$game/Contents/Resources/game" -type d -maxdepth 1 -mindepth 1)"
+                if [ -n "$wrapped_game" ] && [ -e "$wrapped_game/Wineskin.app" ]; then
+                    _game="$wrapped_game"
+                fi
+            fi
+
+            if [ -d "$_game/Game" ]; then
+                game_dir="$_game/$(readlink "$_game/Game")"
             else
-                echo >&2 "Error: Game symlink does not exist or is invalid"
-                usage
+                echo >&2 "Warning: Game symlink does not exist or is invalid, attempting automatic"
+                game_dir="$_game/$(get-gamedir "$_game")"
+                if [ -z "$game_dir" ]; then
+                    usage
+                fi
             fi
             ;;
         *.app/*)
