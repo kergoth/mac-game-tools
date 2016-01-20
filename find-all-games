@@ -6,11 +6,16 @@ find_app_symlinks_resolved () {
 }
 
 {
-    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
-    find_app_symlinks_resolved /Volumes/My\ Passport/Games*/
+    # mdfind -onlyin '/Volumes/My Passport' -attr kMDItemDisplayName "kMDItemUserTags == \"Game\""|sed 's,^/Volumes/My Passport/,,; s,/.*kMDItemDisplayName = ,/,'
+    # find-games | grep -E '/Volumes/(My Passport|Games Archive)/'
+    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type d -print | grep -Ev 'Setup|Launcher|-64'
+    # find_app_symlinks_resolved /Volumes/My\ Passport/Games*/
+    find /Volumes/My\ Passport/Games*/ -iname \*.app -prune -type l -print
     if [ ! -e /Volumes/Games\ Archive ]; then
-        echo >&3 "Warning: Games Archive is not mounted"
+        echo >&2 "Warning: Games Archive is not mounted"
     fi
-    find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type d -print -maxdepth 3 | grep -Ev 'Setup|Launcher|-64'
-    find_app_symlinks_resolved /Volumes/Games\ Archive/Games*/
-} | grep -Ev '\.Trashes|Utilities|Apps|Archived|Experimental|Replaced|Pending|Backup' | sed 's,//,/,g' | sort -u
+    # find_app_symlinks_resolved /Volumes/Games\ Archive/Games*/
+    find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type d -print | grep -Ev 'Setup|Launcher|-64'
+    find /Volumes/Games\ Archive/Games*/ -iname \*.app -prune -type l -print
+    find /Volumes/My\ Passport/OpenEmu\ Library/roms/ -type f -not -name .DS_Store
+} | sed 's,//,/,g' | grep -Ev '\.Trashes|Archived|Pending|Backup|Replaced|Utilities|Apps|Experimental|Replaced|Obsolete'
