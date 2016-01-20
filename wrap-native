@@ -535,7 +535,7 @@ tmp="$(mktemp -d "${0##*/}.XXXXXX")"
 trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then mv "$tmp/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
 
 eval 'create_${game_type}_wrapper "$tmp"'
-if [ ! -L "$tmp/Game" ]; then
+if [ ! -e "$tmp/Game" ] && [ ! -L "$tmp/Game" ]; then
     ln -s "Contents/Resources/$game_base/Game" "$tmp/Game"
 fi
 create_extra_app_wrappers "$tmp"
