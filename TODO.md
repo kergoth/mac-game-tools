@@ -11,3 +11,8 @@
 
     Note that when doing so, we'd need to exclude game launchers (openemu,
     game center, etc), as well as the steam libraries, and any game tools.
+
+## wrap-native
+
+- Consider: handle GOGLauncher dosbox wrappers as source, e.g. to wrap a GOG
+  dosbox wrapper to use scummvm instead
