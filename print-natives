@@ -1,13 +1,23 @@
 #!/bin/sh
 # Print the wrappers which could be handled by wrap-native
 
-tempfile="$(mktemp -t "${0##*/}.XXXXXX")"
+tempfile="$(mktemp -t "${0##*/}.XXXXXX")" || exit 1
 trap 'rm -f "$tempfile"' EXIT INT TERM
 
+PATH="$(cd "$(dirname "$0")" && pwd):$PATH"
 find . -iname \*.app -prune | while read app; do
+    if [ ! -e "$app/Wineskin.app" ]; then
+        # Not a wine wrapper, skip
+        continue
+    fi
+
     game_base="${app##*/}"
     if [ -e "$app/Contents/Resources/$game_base" ]; then
         # Already native, skip
+        continue
+    fi
+
+    if [ ! -e "$app/Game" ]; then
         continue
     fi
 
