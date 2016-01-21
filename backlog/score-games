@@ -97,8 +97,7 @@ find "$@" -type l | while read game; do
         fi
         cat "$toml" | \
             toml-set-string metacritic.game "$mc_game" | \
-            toml-set metacritic.score "$score" | \
-            toml-set metacritic.user_score "$user_score" >"$toml.new" && \
+            toml-set metacritic.score "$score" metacritic.user_score "$user_score" >"$toml.new" && \
             mv "$toml.new" "$toml"
     fi
 done
