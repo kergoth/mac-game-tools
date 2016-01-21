@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# This is a use of the Decorate, Sort, Undecorate idiom. Sorts by user score
-# if no score is available, but continues to show both values in the original
-# form.
 ./score-games 1\ -\ On\ Deck 2\ -\ Next 4\ -\ Incomplete 5\ -\ Backlog | \
-    sed 's/: \([0-9]*\),\(.*\)/: \1,\2 | \1/; /| 0$/s/: 0, \([0-9]*\)\.\([0-9]*\) |.*/: 0, \1.\2 | \1\2/' | sort -nrs -k 2,2 -t'|' | sed 's/ |.*//' | ${PAGER:-less}
+    grep -v ": 0, 0\.0" | \
+    sed -e 's/\(.*\) -> [^:]*: \(.*\)/\2	\1/; s/^\([0-9]*\)\(.*\)/\1\2|\1/; /^0/s/^0, \([0-9]*\)\.\([0-9]*\)\([^|]*\)|[0-9]*$/0, \1.\2\3|\1\2/;' | \
+    sort -nrs -k 2,2 -t"|" | cut -d"|" -f1 | ${PAGER:-less}
