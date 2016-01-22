@@ -33,7 +33,11 @@ copy_plist_info () {
 }
 
 plist_set () {
-    pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+    if ! pb -c "Print '$(pb_escape_value "$1")'" "$3" >/dev/null 2>&1; then
+        pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
+    else
+        pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+    fi
 }
 
 pb () {
