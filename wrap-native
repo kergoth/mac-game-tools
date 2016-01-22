@@ -30,6 +30,7 @@ usage () {
 }
 
 process_arguments () {
+    excluded_game_types=
     scummvm_game_id=
     new_game=
     dry_run=0
@@ -179,6 +180,10 @@ game_type_from_dir () {
             scummvm_game_id=zgi
         fi
     fi
+    case "$game_type" in
+        "$excluded_game_types")
+            return
+    esac
     printf '%s\t%s\n' "$game_type" "$scummvm_game_id"
 }
 
