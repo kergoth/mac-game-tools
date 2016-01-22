@@ -1,0 +1,92 @@
+#!/bin/sh
+
+usage () { cat <<END >&2
+Usage: ${0##*/} [OPTIONS] APP
+
+Options:
+
+  -n NAME          Set CFBundleName
+  -d DISPLAY_NAME  Set CFBundleDisplayName
+  -v VERSION       Set CFBundleVersion
+  -s SHORT_VERSION Set CFBundleShortVersionString
+  -i IDENTIFIER    Set CFBundleIdentifier
+END
+    exit 1
+}
+
+process_arguments () {
+    name=
+    display_name=
+    version=
+    short_version=
+    identifier=
+
+    while getopts n:d:v:s:i:h opt; do
+        case "$opt" in
+            n)
+                name="$OPTARG"
+                ;;
+            d)
+                display_name="$OPTARG"
+                ;;
+            v)
+                version="$OPTARG"
+                ;;
+            s)
+                short_version="$OPTARG"
+                ;;
+            i)
+                identifier="$OPTARG"
+                ;;
+            \?|h)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -ne 1 ]; then
+        usage
+    fi
+
+    app="$1"
+    if [ ! -e "$app" ]; then
+        echo >&2 "Error: $app does not exist"
+        exit 2
+    fi
+}
+
+plist_set () {
+    if ! pb -c "Print '$(pb_escape_value "$1")'" "$3" >/dev/null 2>&1; then
+        pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
+    else
+        pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+    fi
+}
+
+pb () {
+    /usr/libexec/PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
+
+process_arguments "$@"
+
+if [ -n "$name" ]; then
+    plist_set CFBundleName "$name" "$app/Contents/Info.plist"
+fi
+if [ -n "$display_name" ]; then
+    plist_set CFBundleDisplayName "$display_name" "$app/Contents/Info.plist"
+fi
+if [ -n "$version" ]; then
+    plist_set CFBundleVersion "$version" "$app/Contents/Info.plist"
+fi
+if [ -n "$short_version" ]; then
+    plist_set CFBundleShortVersionString "$short_version" "$app/Contents/Info.plist"
+fi
+if [ -n "$identifier" ]; then
+    plist_set CFBundleIdentifier "$identifier" "$app/Contents/Info.plist"
+fi
