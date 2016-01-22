@@ -30,7 +30,8 @@ usage () {
 }
 
 process_arguments () {
-    excluded_game_types=
+    # Flashback is excluded, as REminiscence doesn't handle game controllers
+    excluded_game_types="flashback"
     scummvm_game_id=
     new_game=
     dry_run=0
@@ -178,6 +179,8 @@ game_type_from_dir () {
             # ZGI
             game_type=scummvm
             scummvm_game_id=zgi
+        elif wrap-flashback -c "$1" /invalid; then
+            game_type=flashback
         fi
     fi
     case "$game_type" in
@@ -185,6 +188,14 @@ game_type_from_dir () {
             return
     esac
     printf '%s\t%s\n' "$game_type" "$scummvm_game_id"
+}
+
+create_flashback_wrapper () {
+    destdir="$1"
+    rmdir "$destdir"
+    wrap-flashback -n "$game_dir" "$destdir"
+    wrap_app "$game" "$destdir" -V
+    app_set_metadata -i com.kergoth.wrapped.flashback "$destdir"
 }
 
 adjust_identifier () {

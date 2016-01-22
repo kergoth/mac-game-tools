@@ -1,0 +1,108 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Check only. Return 0 if the game is supported by this script, 10 if not.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+END
+    exit 1
+}
+
+process_arguments () {
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+
+    while getopts cnr:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir#**/}.app"
+    fi
+}
+
+check_supported () {
+    if [ $(find "$gamedir" -maxdepth 1 -type f -iname fb.exe -o -iname fb.cfg | wc -l) -ne 2 ]; then
+        # Game unsupported
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: $gamedir is unsupported"
+        fi
+        exit 10
+    fi
+
+    if [ $check_only -eq 1 ]; then
+        exit 0
+    fi
+}
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+
+process_arguments "$@"
+check_supported
+
+reminiscence="$(locate_app_by_id "org.kergoth.reminiscence" | sed 's,$,/Contents/MacOS/rs,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/rs,,')"
+if [ -z "$reminiscence" ]; then
+    echo >&2 "Error: unable to locate REminiscence.app, please make it available."
+    return 1
+fi
+echo >&2 "REminiscence: $reminiscence"
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+cp -a "$reminiscence" "$destdir"
+
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$destdir/Contents/Resources/Flashback"
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+        rel_path=../../Game
+    fi
+    ln -s Contents/Resources/Flashback "$destdir/Game"
+fi
+rm -rf "$destdir/Contents/Resources/DATA"
+ln -s "$rel_path/data" "$destdir/Contents/Resources/DATA"
+
+game_name="${destdir%.app}"
+game_name="${game_name##*/}"
+rs_version="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$destdir/Contents/Info.plist")"
+app_set_metadata -n "$game_name" -d "$game_name" -s "REminiscence $rs_version" \
+                 -v "REminiscence $rs_version" \
+                 -i "com.kergoth.Flashback" "$destdir"
