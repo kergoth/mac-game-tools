@@ -13,6 +13,7 @@ usage () {
     echo >&2 "Options:"
     echo >&2 "  -n              Do not move FROM_APP into TO_APP"
     echo >&2 "  -r REL_DEST     FROM_APP will live in TO_APP/Contents/Resources/REL_DEST"
+    echo >&2 "  -V              Do not copy version metadata"
     exit 2
 }
 
@@ -23,11 +24,18 @@ copy_tags () {
 }
 
 copy_plist_info () {
-    for key in CFBundleIdentifier CFBundleName CFBundleDisplayName \
-               CFBundleVersion CFBundleShortVersionString; do
-        from_value="$(pb -c "Print '$(pb_escape_value "$key")'" "$1/Contents/Info.plist" | sed 's,^",,g; s,"$,,g')"
+    from="$1"
+    to="$2"
+    shift 2
+
+    set -- CFBundleIdentifier CFBundleName CFBundleDisplayName
+    if [ $copy_version -eq 1 ]; then
+        set -- "$@" CFBundleVersion CFBundleShortVersionString
+    fi
+    for key; do
+        from_value="$(pb -c "Print '$(pb_escape_value "$key")'" "$from/Contents/Info.plist" 2>/dev/null | sed 's,^",,g; s,"$,,g')"
         if [ -n "$from_value" ]; then
-            plist_set "$key" "$from_value" "$2/Contents/Info.plist"
+            plist_set "$key" "$from_value" "$to/Contents/Info.plist"
         fi
     done
 }
@@ -54,13 +62,17 @@ PATH="$scriptdir:$PATH:/usr/libexec"
 
 rel_dest=
 move=1
-while getopts r:nh opt; do
+copy_version=1
+while getopts nr:Vh opt; do
     case "$opt" in
         n)
             move=0
             ;;
         r)
             rel_dest="$OPTARG"
+            ;;
+        V)
+            copy_version=0
             ;;
         \?|h)
             usage
