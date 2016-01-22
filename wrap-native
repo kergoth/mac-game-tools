@@ -193,6 +193,11 @@ wrap_app () {
     else
         wrap-app "$@"
     fi
+    # Sanity check
+    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
+        echo >&2 "Game doesn't exist in $destdir, aborting"
+        exit 2
+    fi
 }
 
 # Replace supplementary app symlinks with wrappers
@@ -256,10 +261,6 @@ create_dosbox_wrapper () {
     rm -f "$destdir/Contents/Info.plist.bak"
 
     wrap_app "$game" "$destdir"
-    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
-        echo >&2 "Game doesn't exist in $destdir, aborting"
-        exit 12
-    fi
     plist_set CFBundleIdentifier "org.kergoth.gog.boxer.$(adjust_identifier "$game_name")" "$destdir/Contents/Info.plist"
 
     newgame="$destdir/Contents/Resources/$game_base"
@@ -404,10 +405,6 @@ create_openmw_wrapper () {
     fi
 
     wrap_app "$game" "$destdir"
-    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
-        echo >&2 "Game doesn't exist in $destdir, aborting"
-        exit 12
-    fi
     plist_set CFBundleIdentifier "$identifier" "$destdir/Contents/Info.plist"
     plist_set CFBundleVersion "$version" "$destdir/Contents/Info.plist"
 
@@ -438,10 +435,6 @@ create_openrct2_wrapper () {
 
     cp -a "$openrct2" "$destdir/"
     wrap_app "$game" "$destdir"
-    if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
-        echo >&2 "Game doesn't exist in $destdir, aborting"
-        exit 12
-    fi
 
     newgame="$destdir/Contents/Resources/$game_base"
     gamedir="$newgame/$(readlink "$newgame/Game")"
@@ -479,10 +472,6 @@ create_gemrb_wrapper () {
     cp -a "$gemrb" "$destdir/Contents/Resources/"
     wrap_app "$game" "$destdir"
     newgame="$destdir/Contents/Resources/$game_base"
-    if [ ! -e "$newgame" ]; then
-        echo >&2 "Game doesn't exist in $destdir, aborting"
-        exit 12
-    fi
     rel_game_dir="${game_dir#$game/}"
     echo rel_game_dir: $rel_game_dir
     rm -f "$destdir/Contents/Resources/game"
