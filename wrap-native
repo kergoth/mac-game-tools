@@ -192,11 +192,14 @@ adjust_identifier () {
 }
 
 wrap_app () {
+    from="$1"
+    to="$2"
+    shift 2
     if [ $copy_wrapper -eq 1 ]; then
-        wrap-app -n "$@"
-        cp -a "$1" "$2/Contents/Resources/"
+        wrap-app -n "$@" "$from" "$to"
+        cp -a "$from" "$to/Contents/Resources/"
     else
-        wrap-app "$@"
+        wrap-app "$@" "$from" "$to"
     fi
     # Sanity check
     if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
