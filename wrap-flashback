@@ -49,7 +49,7 @@ process_arguments () {
     if [ $# -gt 1 ]; then
         destdir="${2%.app}.app"
     else
-        destdir="${gamedir#**/}.app"
+        destdir="${gamedir##*/}.app"
     fi
 }
 
