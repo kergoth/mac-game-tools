@@ -641,7 +641,7 @@ trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then m
 
 eval 'create_${game_type}_wrapper "$tmp"'
 if [ ! -e "$tmp/Game" ] && [ ! -L "$tmp/Game" ]; then
-    ln -s "Contents/Resources/$game_base/Game" "$tmp/Game"
+    ln -s "Contents/Resources/$game_base/$(relpath "$game_dir" "$game")" "$tmp/Game"
 fi
 create_extra_app_wrappers "$tmp"
 if [ -e "$new_game" ]; then
