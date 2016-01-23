@@ -93,7 +93,8 @@ fi
 
 to_app="$2"
 if [ ! -e "$to_app" ]; then
-    die "$to_app does not exist"
+    echo >&2 "$to_app does not exist"
+    exit 1
 fi
 
 from_base="${from_app##*/}"
