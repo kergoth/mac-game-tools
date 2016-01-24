@@ -96,10 +96,24 @@ identify_game_wrapper () {
     fi
 }
 
-if [ $# -eq 1 ]; then
-    identify_game_wrapper "$1"
-else
-    for game; do
+
+quiet=0
+while getopts qh opt; do
+    case "$opt" in
+        q)
+            quiet=1
+            ;;
+        \?|h)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+for game; do
+    if [ $quiet -eq 1 ]; then
+        identify_game_wrapper "$game"
+    else
         printf "%s\t%s\n" "$game" "$(identify_game_wrapper "$game")"
-    done
-fi
+    fi
+done

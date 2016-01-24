@@ -41,7 +41,7 @@ find "7 - Not Playing" -type l | while read l; do
         continue
     fi
 
-    case "$(identify-game-wrapper "$f")" in
+    case "$(identify-game-wrapper -q "$f")" in
         steam)
             dest="/Volumes/My Passport/${dest#$archive/}"
             echo >&2 "Skipping move of native steam game $f"

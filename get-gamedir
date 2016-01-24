@@ -5,7 +5,7 @@ relpath () {
 }
 
 game="$1"
-type="${2:-$(identify-game-wrapper "$game")}"
+type="${2:-$(identify-game-wrapper -q "$game")}"
 
 exclude_game="$game"
 if [ "$type" = "windows (wineskin)" ]; then
