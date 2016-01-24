@@ -156,12 +156,6 @@ find "$@" -type l | while read -r game; do
     fi
 
     if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
-        # if [ "$mc_game" = "##invalid##" ]; then
-        #     imdb_ratings="$(./imdb-game-ratings "$search_query" 2>/dev/null)"
-        #     if [ -n "$imdb_ratings" ]; then
-        #         echo "$imdb_ratings"
-        #     fi
-        # fi
         printf "%s -> %s: %s\n" "$game" "$lookup_game" "$scores"
         if [ "$write" -eq 1 ]; then
             sleep 2
