@@ -107,7 +107,7 @@ plist_set () {
 }
 
 plist_add () {
-    pb -c "Add '$(pb_escape_value "$1")' "${4:-string}" '$(pb_escape_value "$2")'" "$3"
+    pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
 }
 
 pb () {
