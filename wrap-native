@@ -278,6 +278,9 @@ create_dosbox_wrapper () {
     cp -a "$wrapper_template/." "$destdir/"
     sed -i.bak -Ee "s/{{GAMEBOX_NAME}}/$game_name.boxer/; s/{{ORGANIZATION_NAME}}/kergoth@gmail.com/; s/{{ORGANIZATION_URL}}/mailto:kergoth@gmail.com/; s/{{BUNDLE_IDENTIFIER}}/$identifier/g; s/{{APPLICATION_NAME}}/$game_name/; s/{{YEAR}}/$(date +%Y)/;" "$destdir/Contents/Info.plist"
     rm -f "$destdir/Contents/Info.plist.bak"
+    for i in UTImportedTypeDeclarations UTExportedTypeDeclarations CFBundleDocumentTypes; do
+        pb -c "Delete :$i" "$destdir/Contents/Info.plist"
+    done
 
     wrap_app "$game" "$destdir"
     plist_set CFBundleIdentifier "org.kergoth.gog.boxer.$(adjust_identifier "$game_name")" "$destdir/Contents/Info.plist"
