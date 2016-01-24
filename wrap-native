@@ -383,7 +383,7 @@ END
         if [ -n "$conf_dir" ] && [ "$conf_dir" != . ]; then
             echo "cd $conf_dir" >>"$game_dir/$launch"
         fi
-        sed -n -f "$boxer/exec.sed" "$game_dir/$autoexec_conf" >>"$game_dir/$launch"
+        LC_ALL=C sed -n -f "$boxer/exec.sed" "$game_dir/$autoexec_conf" >>"$game_dir/$launch"
 
         count="$(($count + 1))"
     done
