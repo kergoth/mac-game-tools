@@ -156,7 +156,7 @@ find "$@" -type l | while read -r game; do
     fi
 
     if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
-        printf "%s -> %s: %s\n" "$game" "$lookup_game" "$scores"
+        printf "%s\t%s\t%s\n" "$game" "$lookup_game" "$scores"
         if [ "$write" -eq 1 ]; then
             sleep 2
         fi
