@@ -3,3 +3,4 @@
 PATH="$(dirname "$0"):$PATH"
 
 finalize_wrapper "$1/$(readlink "$1/Game")"
+disable_steam_redists "$1"
