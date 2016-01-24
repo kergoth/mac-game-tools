@@ -6,9 +6,11 @@ wrap_installer () {
     wrap_name="$3"
 
     new-gog-wrapper "$wrap_out" "$wrap_name"
-    install-gog "$wrap_exe" "$wrap_out/Games/$wrap_name"
+    games_dir="$wrap_out/drive_c/GOG Games"
+    mkdir -p "$games_dir"
+    install-gog "$wrap_exe" "$games_dir/$wrap_name"
     rm -f "$wrap_out/Game"
-    ln -s "$(readlink "$wrap_out/Games")/$wrap_name" "$wrap_out/Game"
+    ln -s "$(readlink "$games_dir")/$wrap_name" "$wrap_out/Game"
     rm -f "$wrap_out/finalize_gog" "$wrap_out/Contents/Resources/finalize_gog"
     finalize_gog "$wrap_out"
     if [ -d "$wrap_out" ]; then
