@@ -640,16 +640,18 @@ if [ $dry_run -eq 1 ]; then
 fi
 
 tmp="$(mktemp -d "${0##*/}.XXXXXX")"
-trap 'if [ ! -e "$game" ] && [ -e "$tmp/Contents/Resources/$game_base" ]; then mv "$tmp/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
+trap 'if [ ! -e "$game" ] && [ -e "$tmp_game/Contents/Resources/$game_base" ]; then mv "$tmp_game/Contents/Resources/$game_base" "$game"; fi; rm -rf "$tmp"' EXIT INT TERM
+tmp_game="$tmp/$new_game"
 
-eval 'create_${game_type}_wrapper "$tmp"'
-if [ ! -e "$tmp/Game" ] && [ ! -L "$tmp/Game" ]; then
-    ln -s "Contents/Resources/$game_base/$(relpath "$game_dir" "$game")" "$tmp/Game"
+eval 'create_${game_type}_wrapper "$tmp_game"'
+if [ ! -e "$tmp_game/Game" ] && [ ! -L "$tmp_game/Game" ]; then
+    ln -s "Contents/Resources/$game_base/$(relpath "$game_dir" "$game")" "$tmp_game/Game"
 fi
-create_extra_app_wrappers "$tmp"
+create_extra_app_wrappers "$tmp_game"
 if [ -e "$new_game" ]; then
     echo >&2 "Error: $new_game still exists?"
     exit 5
 fi
-mv "$tmp" "$new_game"
+mv "$tmp_game" "$new_game"
+rmdir "$tmp"
 printf >&2 'Created `%s`\n' "$new_game"
