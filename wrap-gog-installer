@@ -31,7 +31,7 @@ game_name="$(gog-installer-get-name "$installer")"
 app_name="$(echo "$game_name" | tr -d :/).app"
 if [ -e "$app_name" ]; then
     echo >&2 "Warning: $app_name already exists, skipping"
-    continue
+    exit 1
 fi
 echo >&2 "Creating $app_name"
 
