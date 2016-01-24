@@ -44,7 +44,7 @@ create_extras () {
         done
         jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -Eiv '\.(exe|bat)$' | \
         while read path; do
-            ln -svf "../$gamedir/$(echo "$path" | tr "\\" "/")" "$outdir/"
+            ln -svf "../$gamedir/$(echo "$path" | tr "\\" "/")" "$outdir"
         done
 }
 
