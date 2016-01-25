@@ -14,5 +14,15 @@
 
 ## wrap-native
 
-- Consider: handle GOGLauncher dosbox wrappers as source, e.g. to wrap a GOG
-  dosbox wrapper to use scummvm instead
+- Fix all the wrapper scripts to check supported correctly. That is, in some
+  cases, just because we didn't find e.g. dosbox.exe doesn't mean the script
+  should error out if it doesn't find it, so that check should only be done
+  when running in check only mode.
+- Add copymacicon to all the external scripts which use new-app, as the new
+  app will otherwise have no icon at all when using a gamedir as a source.
+- Consolidate common logic amongst the external scripts.
+- Add temp dir usage to the external scripts, so the final app is renamed into
+  place in a single operation.
+- Add handling of GOG dosbox wrappers as input
+- Add handling of Boxer standalone instances as input, not just wineskin
+  wrappers of windows dosbox installs.
