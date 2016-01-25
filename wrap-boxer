@@ -40,12 +40,13 @@ process_arguments () {
         usage
     fi
 
-    gamedir="$(cd "$1" && pwd)"
+    gamedir="$1"
     if [ $# -gt 1 ]; then
         destdir="${2%.boxer}.boxer"
     else
         destdir="${gamedir##*/}.boxer"
     fi
+    gamedir="$(cd "$gamedir" && pwd -P)"
     game_name="${destdir%.boxer}"
     game_name="${game_name##*/}"
 }

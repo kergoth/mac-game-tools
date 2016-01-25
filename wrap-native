@@ -106,6 +106,7 @@ process_arguments () {
             usage
             ;;
     esac
+    game_dir="$(cd "$game_dir" && pwd -P)"
     game_name="${game_base%.app}"
 }
 
