@@ -14,6 +14,7 @@
 
 ## wrap-native
 
+- Pass the game name from wrap-native into the wrapper scripts
 - Fix all the wrapper scripts to check supported correctly. That is, in some
   cases, just because we didn't find e.g. dosbox.exe doesn't mean the script
   should error out if it doesn't find it, so that check should only be done
