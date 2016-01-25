@@ -120,7 +120,7 @@ if [ -L C.harddisk ] && [ -d "\$gamedir" ]; then
     "\$scriptdir/Contents/Resources/lnr" C.harddisk "\$gamedir"
 fi
 ./finalize
-rm -f "\$scriptdir/Contents/Resources/lnr" "\$0"
+rm -f "\$scriptdir/Contents/Resources/lnr" "\$scriptdir/\${0##*/}"
 END
     chmod +x "$destdir/finalize_wrapper"
 fi
