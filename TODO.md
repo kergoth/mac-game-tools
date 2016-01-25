@@ -23,6 +23,3 @@
 - Consolidate common logic amongst the external scripts.
 - Add temp dir usage to the external scripts, so the final app is renamed into
   place in a single operation.
-- Add handling of GOG dosbox wrappers as input
-- Add handling of Boxer standalone instances as input, not just wineskin
-  wrappers of windows dosbox installs.
