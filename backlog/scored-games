@@ -7,5 +7,5 @@ fi
 ./score-games "$@" | \
     while IFS="	" read game lookup_game scores; do
         sort_field="$(echo "$scores" | tr -d . | sed 's/00/0/g; s/^0	//g')"
-        printf '%s\t%s\t%s|%s\n' "$game" "$lookup_game" "$scores" "$sort_field"
-    done | sort -nrs -k 2,2 -t"|" | cut -d"|" -f1 | ${PAGER:-less}
+        printf '%s\t%s|%s\n' "$game" "$scores" "$sort_field"
+    done | grep -v '|0$' | sort -nrs -k 2,2 -t"|" | cut -d"|" -f1 | ${PAGER:-less}
