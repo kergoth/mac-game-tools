@@ -149,9 +149,13 @@ for game; do
         plist_set CFBundleDisplayName "$name" Contents/Info.plist
         new_game="${game%/*}/$(echo "$name" | tr -d :/).app"
         if [ "$game" != "$new_game" ]; then
-            mv -v "$game" "$new_game"
-            printf >&2 "Renamed game from '%s' to '%s'\n" "$game" "$new_game"
-            game="$new_game"
+            if [ -e "$new_game" ]; then
+                echo >&2 "Error: unable to rename '%s' to '%s', as the latter already exists"
+            else
+                mv -v "$game" "$new_game"
+                printf >&2 "Renamed game from '%s' to '%s'\n" "$game" "$new_game"
+                game="$new_game"
+            fi
         fi
     fi
 
