@@ -69,11 +69,15 @@ process_arguments () {
     game_base="${game##*/}"
 
     if [ -e "$game/Contents/Resources/$game_base" ]; then
-        if [ $force -eq 1 ]; then
-            unnative "$game"
+        if [ $copy_wrapper -eq 0 ]; then
+            if [ $force -eq 1 ]; then
+                unnative "$game"
+            else
+                echo >&2 "Error: $game is already wrapped native"
+                exit 1
+            fi
         else
-            echo >&2 "Error: $game is already wrapped native"
-            exit 1
+            game="$game/Contents/Resources/$game_base"
         fi
     fi
 
@@ -232,13 +236,13 @@ printf 'Game type: %s\n' "$game_type"
 
 if [ -z "$new_game" ]; then
     new_game="$game"
+    if [ $copy_wrapper -eq 1 ]; then
+        new_game="${new_game%.app} Native.app"
+    fi
 fi
 
-if [ $copy_wrapper -eq 1 ]; then
-    new_game="${new_game%.app} Native.app"
-    if [ -e "$new_game" ]; then
-        echo >&2 "Error: $new_game already exists, aborting"
-    fi
+if [ $copy_wrapper -eq 1 ] && [ -e "$new_game" ]; then
+    echo >&2 "Error: $new_game already exists, aborting"
 fi
 
 printf 'New Game Path: %s\n' "$new_game"
