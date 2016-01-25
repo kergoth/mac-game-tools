@@ -94,34 +94,37 @@ if [ -e "$destdir" ]; then
     exit 2
 fi
 
+tmp="$(mktemp -d "$(dirname "$destdir")/${0##*/}.XXXXXX")" || exit 1
+tmp_game="$tmp/${destdir##*/}"
+trap 'rm -rf "$tmp"' EXIT INT TERM
 
 identifier="org.kergoth.gog.boxer.$(adjust_identifier "$game_name")"
 wrapper_template="$(locate_app_by_id net.washboardabs.boxer-standalone | head -n 1)"
 
 printf 'Boxer Standalone: %s\n' "$wrapper_template"
-cp -a "$wrapper_template/." "$destdir/"
-sed -i.bak -Ee "s/{{GAMEBOX_NAME}}/$game_name.boxer/; s/{{ORGANIZATION_NAME}}/kergoth@gmail.com/; s/{{ORGANIZATION_URL}}/mailto:kergoth@gmail.com/; s/{{BUNDLE_IDENTIFIER}}/$identifier/g; s/{{APPLICATION_NAME}}/$game_name/; s/{{YEAR}}/$(date +%Y)/;" "$destdir/Contents/Info.plist"
-rm -f "$destdir/Contents/Info.plist.bak"
+cp -a "$wrapper_template/." "$tmp_game/"
+sed -i.bak -Ee "s/{{GAMEBOX_NAME}}/$game_name.boxer/; s/{{ORGANIZATION_NAME}}/kergoth@gmail.com/; s/{{ORGANIZATION_URL}}/mailto:kergoth@gmail.com/; s/{{BUNDLE_IDENTIFIER}}/$identifier/g; s/{{APPLICATION_NAME}}/$game_name/; s/{{YEAR}}/$(date +%Y)/;" "$tmp_game/Contents/Info.plist"
+rm -f "$tmp_game/Contents/Info.plist.bak"
 for i in UTImportedTypeDeclarations UTExportedTypeDeclarations CFBundleDocumentTypes; do
-    /usr/libexec/PlistBuddy -c "Delete :$i" "$destdir/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Delete :$i" "$tmp_game/Contents/Info.plist"
 done
 
 gog_game_id="$(jq -rs 'map(select(.gameId == .rootGameId)) | .[0].gameId' "$gamedir"/goggame-*.info 2>/dev/null)" || true
 if [ -n "$gog_game_id" ] && [ "$gog_game_id" != "null" ]; then
-    pb -c "Delete BXHelpLinks" "$destdir/Contents/Info.plist" >/dev/null 2>&1 || true
-    pb -c "Add BXHelpLinks array" "$destdir/Contents/Info.plist"
+    pb -c "Delete BXHelpLinks" "$tmp_game/Contents/Info.plist" >/dev/null 2>&1 || true
+    pb -c "Add BXHelpLinks array" "$tmp_game/Contents/Info.plist"
     gog_info="$gamedir/goggame-$gog_game_id.info"
     count=0
     jq <"$gog_info" '.supportTasks + .playTasks | .[] | select(.type == "URLTask") | .name + "|" + .link' | sed 's,^",,; s,"$,,' | \
         while IFS="|" read -r title url; do
-            pb -c "Add BXHelpLinks:$count dict" "$destdir/Contents/Info.plist"
-            plist_add "BXHelpLinks:$count:BXHelpLinkURL" "$url" "$destdir/Contents/Info.plist"
-            plist_add "BXHelpLinks:$count:BXHelpLinkTitle" "$title" "$destdir/Contents/Info.plist"
+            pb -c "Add BXHelpLinks:$count dict" "$tmp_game/Contents/Info.plist"
+            plist_add "BXHelpLinks:$count:BXHelpLinkURL" "$url" "$tmp_game/Contents/Info.plist"
+            plist_add "BXHelpLinks:$count:BXHelpLinkTitle" "$title" "$tmp_game/Contents/Info.plist"
             count="$((count + 1))"
         done
 fi
 
-boxer="$destdir/Contents/Resources/$game_name.boxer"
+boxer="$tmp_game/Contents/Resources/$game_name.boxer"
 wrap-boxer -n "$gamedir" "$boxer"
 
 if [ $no_copy -eq 0 ]; then
@@ -131,15 +134,15 @@ if [ $no_copy -eq 0 ]; then
     if [ "$rel_path" != "../../Game" ]; then
         echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
     fi
-    ln -s "${boxer#$destdir/}/C.harddisk" "$destdir/Game"
+    ln -s "${boxer#$tmp_game/}/C.harddisk" "$tmp_game/Game"
 else
     ln -s "../$rel_path" "$boxer/C.harddisk"
-    cp -a "$(which lnr)" "$destdir/Contents/Resources/"
-    cat <<END >"$destdir/finalize_wrapper"
+    cp -a "$(which lnr)" "$tmp_game/Contents/Resources/"
+    cat <<END >"$tmp_game/finalize_wrapper"
 #!/bin/sh
 set -e
 scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
-cd "\$scriptdir/${boxer#$destdir/}"
+cd "\$scriptdir/${boxer#$tmp_game/}"
 gamedir="\$(cd C.harddisk && pwd -P)"
 if [ -L C.harddisk ] && [ -d "\$gamedir" ]; then
     rm C.harddisk
@@ -149,11 +152,13 @@ fi
 ./finalize
 rm -f "\$scriptdir/Contents/Resources/lnr" "\$scriptdir/\${0##*/}"
 END
-    chmod +x "$destdir/finalize_wrapper"
+    chmod +x "$tmp_game/finalize_wrapper"
 fi
 
 if [ -e "$boxer/game.icns" ]; then
-    cp "$boxer/game.icns" "$destdir/Contents/Resources/app.icns"
+    cp "$boxer/game.icns" "$tmp_game/Contents/Resources/app.icns"
 else
-    copymacicon "$boxer" "$destdir"
+    copymacicon "$boxer" "$tmp_game"
 fi
+mv "$tmp_game" "$destdir"
+rmdir "$tmp"
