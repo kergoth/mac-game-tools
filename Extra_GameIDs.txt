@@ -128,6 +128,11 @@ lsl2	Leisure Suit Larry 2
 lsl3	Leisure Suit Larry 3
 lsl5	Leisure Suit Larry 5
 lsl6	Leisure Suit Larry 6
+lsl1sci	Leisure Suit Larry 1 (VGA) In the Land of the Lounge Lizards
+lsl2	Leisure Suit Larry 2 Looking For Love (In Several Wrong Places)
+lsl3	Leisure Suit Larry 3 Passionate Patti in Pursuit of the Pulsating Pectorals!
+lsl5	Leisure Suit Larry 5 Passionate Patti Does a Little Undercover Work!
+lsl6	Leisure Suit Larry 6 (VGA): Shape Up Or Slip Out
 lure	Lure of the Temptress
 manhole	The Manhole
 maniac	Maniac Mansion
