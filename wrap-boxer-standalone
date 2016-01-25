@@ -157,8 +157,27 @@ fi
 
 if [ -e "$boxer/game.icns" ]; then
     cp "$boxer/game.icns" "$tmp_game/Contents/Resources/app.icns"
+elif [ -d "$boxer/Icons" ]; then
+    cp -a "$boxer/Icons" "$tmp_game/Icons"
+    cat >"$tmp_game/Icons/finish" <<END
+#!/bin/sh
+
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
+app="\${scriptdir%/*}"
+cd "\$scriptdir"
+if ls *.icns &>/dev/null; then
+    icns="\$(ls *.icns | head -n 1)"
+    cp "\$icns" "\$app/Contents/Resources/app.icns"
+    sips -i "\$app/Contents/Resources/app.icns"
+    rm -rf "\$scriptdir"
+fi
+END
+    chmod +x "$tmp_game/Icons/finish"
 else
     copymacicon "$boxer" "$tmp_game" || true
 fi
 mv "$tmp_game" "$destdir"
 rmdir "$tmp"
+if [ -d "$destdir/Icons" ]; then
+    open "$destdir/Icons"
+fi
