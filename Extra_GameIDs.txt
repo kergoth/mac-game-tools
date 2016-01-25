@@ -1,239 +1,239 @@
-Blues123Time    Blue's 123 Time Activities
-BluesABCTime    Blue's ABC Time Activities
-BluesBirthday    Blue's Birthday Adventure
-activity    Putt-Putt & Fatty Bear's Activity Pack
-agi-fanmade    Fanmade Games
-airport    Let's Explore the Airport with Buzzy
-arthur    Arthur's Teacher Trouble
-arthurbday    Arthur's Birthday
-arttime    Blue's Art Time Activities
-atlantis    Indiana Jones and the Fate of Atlantis
-balloon    Putt-Putt and Pep's Balloon-O-Rama
-bambou    Bambou le sauveur de la jungle
-bargon    Bargon Attack
-baseball    Backyard Baseball
-baseball2001    Backyard Baseball 2001
-baseball2003    Backyard Baseball 2003
-bc    The Black Cauldron
-beardark    The Berenstain Bears in the Dark
-bearfight    The Berenstain Bears Get in a Fight
-blueforce    Blue Force
-brstorm    Bear Stormin'
-camelot    Conquests of Camelot
-castlebrain    Castle of Dr. Brain
-chase    SPY Fox in Cheese Chase
-chivalry    Chivalry is Not Dead
-comi    The Curse of Monkey Island
-cruise    Cruise for a Corpse
-darby    Darby the Dragon
-dig    The Dig
-dimp    Simon the Sorcerer's Puzzle Pack - Demon In My Pocket
-dog    Putt-Putt and Pep's Dog on a Stick
-draci    Dragon History
-drascula    Drascula: The Vampire Strikes Back
-dreamweb    DreamWeb
-dw    Discworld
-dw2    Discworld 2: Missing Presumed ...!?
-ecoquest    EcoQuest: The Search for Cetus
-ecoquest2    EcoQuest 2: Lost Secret of the Rainforest
-elvira1    Elvira - Mistress of the Dark
-elvira2    Elvira II - The Jaws of Cerberus
-eob    Eye of the Beholder
-eob2    Eye of the Beholder II: The Legend of Darkmoon
-fairytales    Mixed-up Fairy Tales
-farm    Let's Explore the Farm with Buzzy
-fascination    Fascination
-fbear    Fatty Bear's Birthday Surprise
-fbpack    Fatty Bear's Fun Pack
-feeble    The Feeble Files
-football    Backyard Football
-football2002    Backyard Football 2002
-freddi    Freddi Fish 1: The Case of the Missing Kelp Seeds
-freddi2    Freddi Fish 2: The Case of the Haunted Schoolhouse
-freddi3    Freddi Fish 3: The Case of the Stolen Conch Shell
-freddi4    Freddi Fish 4: The Case of the Hogfish Rustlers of Briny Gulch
-freddicove    Freddi Fish 5: The Case of the Creature of Coral Cove
-freddypharkas    Freddy Pharkas: Frontier Pharmacist
-ft    Full Throttle
-funpack    Putt-Putt's Fun Pack
-fw    Future Wars
-geisha    Geisha
-gob1    Gobliiins
-gob2    Gobliins 2
-gob2    Gobliins 2: The Prince Buffoon
-gob3    Goblins 3
-gob3    Goblins Quest 3
-goldrush    Gold Rush!
-grandma    Just Grandma and Me
-greeneggs    Green Eggs and Ham
-gregory    Gregory and the Hot Air Balloon
-harryhh    Harry and the Haunted House
-hopkins    Hopkins FBI
-hoyle1    Hoyle's Book of Games 1
-hoyle2    Hoyle's Book of Games 2
-hoyle3    Hoyle's Book of Games 3
-hoyle4    Hoyle Classic Card Games
-hugo1    Hugo's House of Horrors
-hugo2    Hugo 2: Whodunit?
-hugo3    Hugo 3: Jungle of Doom
-iceman    Codename: ICEMAN
-ihnm    I Have No Mouth, and I Must Scream
-indy3    Indiana Jones and the Last Crusade
-islandbrain    The Island of Dr. Brain
-ite    Inherit the Earth: Quest for the Orb
-jones    Jones in the Fast Lane
-jumble    Simon the Sorcerer's Puzzle Pack - Jumble
-jungle    Let's Explore the Jungle with Buzzy
-kq1    King's Quest
-kq1    King's Quest I
-kq1    King's Quest 1
-kq1sci    King's Quest
-kq1sci    King's Quest I
-kq1sci    King's Quest 1
-kq2    King's Quest II
-kq2    King's Quest 2: Romancing the Throne
-kq2    King's Quest 2
-kq3    King's Quest III
-kq3    King's Quest 3
-kq3    King's Quest 3: To Heir is Human
-kq4    King's Quest IV
-kq4    King's Quest 4
-kq4    King's Quest 4: The Perils of Rosella
-kq4sci    King's Quest IV
-kq4sci    King's Quest 4
-kq4sci    King's Quest 4: The Perils of Rosella
-kq5    King's Quest V
-kq5    King's Quest 5
-kq5    King's Quest 5: Absence Makes the Heart Go Yonder
-kq6    King's Quest VI
-kq6    King's Quest 6
-kq6    King's Quest 6: Heir Today, Gone Tomorrow
-kyra1    The Legend of Kyrandia
-kyra2    The Legend of Kyrandia: The Hand of Fate
-kyra3    The Legend of Kyrandia: Malcolm's Revenge
-laurabow    Laura Bow: The Colonel's Bequest
-laurabow2    Laura Bow 2: The Dagger of Amon Ra
-lgop2    Leather Goddesses of Phobos 2
-liam    Magic Tales: Liam Finds a Story
-lilmonster    Little Monster at School
-littlered    Once Upon A Time: Little Red Riding Hood
-lol    Lands of Lore: The Throne of Chaos
-longbow    Conquests of the Longbow
-loom    Loom
-lost    Pajama Sam's Lost & Found
-lostintime    Lost in Time
-lsl1    Leisure Suit Larry in the Land of the Lounge Lizards
-lsl1sci    Leisure Suit Larry 1
-lsl2    Leisure Suit Larry 2
-lsl3    Leisure Suit Larry 3
-lsl5    Leisure Suit Larry 5
-lsl6    Leisure Suit Larry 6
-lure    Lure of the Temptress
-manhole    The Manhole
-maniac    Maniac Mansion
-maze    Freddi Fish and Luther's Maze Madness
-mh1    Manhunter 1: New York
-mh2    Manhunter 2: San Francisco
-mickey    Mickey's Space Adventure
-mixedup    Mixed-Up Mother Goose
-monkey    The Secret of Monkey Island
-monkey2    Monkey Island 2: LeChuck's Revenge
-mortevielle    Mortville Manor
-mothergoose    Mixed-up Mother Goose
-mustard    SPY Fox in Hold the Mustard
-neverhood    The Neverhood
-newkid    The New Kid on the Block
-nippon    Nippon Safes Inc.
-nippon    Nippon Safes Inc.
-pajama    Pajama Sam 1: No Need to Hide When It's Dark Outside
-pajama2    Pajama Sam 2: Thunder and Lightning Aren't so Frightening
-pajama3    Pajama Sam 3: You Are What You Eat From Your Head to Your Feet
-pegasus    The Journeyman Project: Pegasus Prime
-pepper    Pepper's Adventures in Time
-pjgames    Pajama Sam: Games to Play on Any Day
-pn    Personal Nightmare
-pq1    Police Quest I: In Pursuit of the Death Angel
-pq1    Police Quest: In Pursuit of the Death Angel
-pq1sci    Police Quest 1
-pq1sci    Police Quest
-pq2    Police Quest 2
-pq2    Police Quest 2: Vengeance
-pq3    Police Quest 3
-pq3    Police Quest 3: The Kindred
-princess    The Princess and the Crab
-puttcircus    Putt-Putt Joins the Circus
-puttmoon    Putt-Putt Goes to the Moon
-puttputt    Putt-Putt Joins the Parade
-puttrace    Putt-Putt Enters the Race
-putttime    Putt-Putt Travels Through Time
-puttzoo    Putt-Putt Saves the Zoo
-puzzle    Simon the Sorcerer's Puzzle Pack - NoPatience
-qfg1    Quest for Glory 1/Hero's Quest
-qfg1vga    Quest for Glory 1
-qfg1vga    Quest for Glory: So You Want To Be A Hero
-qfg2    Quest for Glory 2
-qfg2    Quest for Glory 2: Trial by Fire
-qfg3    Quest for Glory 3
-qfg3    Quest for Glory 3: Wages of War
-queen    Flight of the Amazon Queen
-readtime    Blue's Reading Time Activities
-ringworld    Ringworld: Revenge Of The Patriarch
-ringworld2    Return to Ringworld
-rodney    Rodney's Funscreen
-rtz    Return to Zork
-ruff    Ruff's Bone
-samnmax    Sam & Max Hit the Road
-seussabc    Dr. Seuss's ABC
-sfinx    Sfinx
-sheila    Sheila Rae, the Brave
-simon1    Simon the Sorcerer 1
-simon2    Simon the Sorcerer 2
-sky    Beneath a Steel Sky
-slater    Slater & Charlie Go Camping
-sleepingcub    Sleeping Cub's Test of Courage
-socks    Pajama Sam's Sock Works
-soltys    Soltys
-spyfox    SPY Fox 1: Dry Cereal
-spyfox2    SPY Fox 2: Some Assembly Required
-spyozon    SPY Fox 3: Operation Ozone
-sq1    Space Quest I: The Sarien Encounter
-sq1    Space Quest 1: The Sarien Encounter
-sq1sci    Space Quest I
-sq1sci    Space Quest 1
-sq2    Space Quest II: Vohaul's Revenge
-sq2    Space Quest 2: Vohaul's Revenge
-sq3    Space Quest III
-sq3    Space Quest 3
-sq3    Space Quest 3: The Pirates of Pestulon
-sq4    Space Quest IV
-sq4    Space Quest 4
-sq4    Space Quest 4: Roger Wilco and the Time Rippers
-sq5    Space Quest V
-sq5    Space Quest 5
-sq5    Space Quest 5: The Next Mutation
-stellaluna    Stellaluna
-swampy    Simon the Sorcerer's Puzzle Pack - Swampy Adventures
-sword1    Broken Sword: The Shadow of the Templars
-sword2    Broken Sword II: The Smoking Mirror
-t7g    The 7th Guest
-teenagent    TeenAgent
-tentacle    Day of the Tentacle
-thinker1    Big Thinkers First Grade
-thinkerk    Big Thinkers Kindergarten
-toltecs    3 Skulls of the Toltecs
-tony    Tony Tough and the Night of Roasted Moths
-toon    Toonstruck
-tortoise    Aesop's Fables: The Tortoise and the Hare
-touche    Touche: The Adventures of the Fifth Musketeer
-troll    Troll's Tale
-tucker    Bud Tucker in Double Trouble
-urban    Urban Runner
-voyeur    Voyeur
-water    Freddi Fish and Luther's Water Worries
-waxworks    Waxworks
-ween    Ween: The Prophecy
-winnie    Winnie the Pooh in the Hundred Acre Wood
-woodruff    The Bizarre Adventures of Woodruff and the Schnibble
-zak    Zak McKracken and the Alien Mindbenders
-zgi    Zork: Grand Inquisitor
-znemesis    Zork Nemesis: The Forbidden Lands
+Blues123Time	Blue's 123 Time Activities
+BluesABCTime	Blue's ABC Time Activities
+BluesBirthday	Blue's Birthday Adventure
+activity	Putt-Putt & Fatty Bear's Activity Pack
+agi-fanmade	Fanmade Games
+airport	Let's Explore the Airport with Buzzy
+arthur	Arthur's Teacher Trouble
+arthurbday	Arthur's Birthday
+arttime	Blue's Art Time Activities
+atlantis	Indiana Jones and the Fate of Atlantis
+balloon	Putt-Putt and Pep's Balloon-O-Rama
+bambou	Bambou le sauveur de la jungle
+bargon	Bargon Attack
+baseball	Backyard Baseball
+baseball2001	Backyard Baseball 2001
+baseball2003	Backyard Baseball 2003
+bc	The Black Cauldron
+beardark	The Berenstain Bears in the Dark
+bearfight	The Berenstain Bears Get in a Fight
+blueforce	Blue Force
+brstorm	Bear Stormin'
+camelot	Conquests of Camelot
+castlebrain	Castle of Dr. Brain
+chase	SPY Fox in Cheese Chase
+chivalry	Chivalry is Not Dead
+comi	The Curse of Monkey Island
+cruise	Cruise for a Corpse
+darby	Darby the Dragon
+dig	The Dig
+dimp	Simon the Sorcerer's Puzzle Pack - Demon In My Pocket
+dog	Putt-Putt and Pep's Dog on a Stick
+draci	Dragon History
+drascula	Drascula: The Vampire Strikes Back
+dreamweb	DreamWeb
+dw	Discworld
+dw2	Discworld 2: Missing Presumed ...!?
+ecoquest	EcoQuest: The Search for Cetus
+ecoquest2	EcoQuest 2: Lost Secret of the Rainforest
+elvira1	Elvira - Mistress of the Dark
+elvira2	Elvira II - The Jaws of Cerberus
+eob	Eye of the Beholder
+eob2	Eye of the Beholder II: The Legend of Darkmoon
+fairytales	Mixed-up Fairy Tales
+farm	Let's Explore the Farm with Buzzy
+fascination	Fascination
+fbear	Fatty Bear's Birthday Surprise
+fbpack	Fatty Bear's Fun Pack
+feeble	The Feeble Files
+football	Backyard Football
+football2002	Backyard Football 2002
+freddi	Freddi Fish 1: The Case of the Missing Kelp Seeds
+freddi2	Freddi Fish 2: The Case of the Haunted Schoolhouse
+freddi3	Freddi Fish 3: The Case of the Stolen Conch Shell
+freddi4	Freddi Fish 4: The Case of the Hogfish Rustlers of Briny Gulch
+freddicove	Freddi Fish 5: The Case of the Creature of Coral Cove
+freddypharkas	Freddy Pharkas: Frontier Pharmacist
+ft	Full Throttle
+funpack	Putt-Putt's Fun Pack
+fw	Future Wars
+geisha	Geisha
+gob1	Gobliiins
+gob2	Gobliins 2
+gob2	Gobliins 2: The Prince Buffoon
+gob3	Goblins 3
+gob3	Goblins Quest 3
+goldrush	Gold Rush!
+grandma	Just Grandma and Me
+greeneggs	Green Eggs and Ham
+gregory	Gregory and the Hot Air Balloon
+harryhh	Harry and the Haunted House
+hopkins	Hopkins FBI
+hoyle1	Hoyle's Book of Games 1
+hoyle2	Hoyle's Book of Games 2
+hoyle3	Hoyle's Book of Games 3
+hoyle4	Hoyle Classic Card Games
+hugo1	Hugo's House of Horrors
+hugo2	Hugo 2: Whodunit?
+hugo3	Hugo 3: Jungle of Doom
+iceman	Codename: ICEMAN
+ihnm	I Have No Mouth, and I Must Scream
+indy3	Indiana Jones and the Last Crusade
+islandbrain	The Island of Dr. Brain
+ite	Inherit the Earth: Quest for the Orb
+jones	Jones in the Fast Lane
+jumble	Simon the Sorcerer's Puzzle Pack - Jumble
+jungle	Let's Explore the Jungle with Buzzy
+kq1	King's Quest
+kq1	King's Quest I
+kq1	King's Quest 1
+kq1sci	King's Quest
+kq1sci	King's Quest I
+kq1sci	King's Quest 1
+kq2	King's Quest II
+kq2	King's Quest 2: Romancing the Throne
+kq2	King's Quest 2
+kq3	King's Quest III
+kq3	King's Quest 3
+kq3	King's Quest 3: To Heir is Human
+kq4	King's Quest IV
+kq4	King's Quest 4
+kq4	King's Quest 4: The Perils of Rosella
+kq4sci	King's Quest IV
+kq4sci	King's Quest 4
+kq4sci	King's Quest 4: The Perils of Rosella
+kq5	King's Quest V
+kq5	King's Quest 5
+kq5	King's Quest 5: Absence Makes the Heart Go Yonder
+kq6	King's Quest VI
+kq6	King's Quest 6
+kq6	King's Quest 6: Heir Today, Gone Tomorrow
+kyra1	The Legend of Kyrandia
+kyra2	The Legend of Kyrandia: The Hand of Fate
+kyra3	The Legend of Kyrandia: Malcolm's Revenge
+laurabow	Laura Bow: The Colonel's Bequest
+laurabow2	Laura Bow 2: The Dagger of Amon Ra
+lgop2	Leather Goddesses of Phobos 2
+liam	Magic Tales: Liam Finds a Story
+lilmonster	Little Monster at School
+littlered	Once Upon A Time: Little Red Riding Hood
+lol	Lands of Lore: The Throne of Chaos
+longbow	Conquests of the Longbow
+loom	Loom
+lost	Pajama Sam's Lost & Found
+lostintime	Lost in Time
+lsl1	Leisure Suit Larry in the Land of the Lounge Lizards
+lsl1sci Leisure Suit Larry 1
+lsl2	Leisure Suit Larry 2
+lsl3	Leisure Suit Larry 3
+lsl5	Leisure Suit Larry 5
+lsl6	Leisure Suit Larry 6
+lure	Lure of the Temptress
+manhole	The Manhole
+maniac	Maniac Mansion
+maze	Freddi Fish and Luther's Maze Madness
+mh1	Manhunter 1: New York
+mh2	Manhunter 2: San Francisco
+mickey	Mickey's Space Adventure
+mixedup	Mixed-Up Mother Goose
+monkey	The Secret of Monkey Island
+monkey2	Monkey Island 2: LeChuck's Revenge
+mortevielle	Mortville Manor
+mothergoose	Mixed-up Mother Goose
+mustard	SPY Fox in Hold the Mustard
+neverhood	The Neverhood
+newkid	The New Kid on the Block
+nippon	Nippon Safes Inc.
+nippon	Nippon Safes Inc.
+pajama	Pajama Sam 1: No Need to Hide When It's Dark Outside
+pajama2	Pajama Sam 2: Thunder and Lightning Aren't so Frightening
+pajama3	Pajama Sam 3: You Are What You Eat From Your Head to Your Feet
+pegasus	The Journeyman Project: Pegasus Prime
+pepper	Pepper's Adventures in Time
+pjgames	Pajama Sam: Games to Play on Any Day
+pn	Personal Nightmare
+pq1	Police Quest I: In Pursuit of the Death Angel
+pq1	Police Quest: In Pursuit of the Death Angel
+pq1sci	Police Quest 1
+pq1sci	Police Quest
+pq2	Police Quest 2
+pq2	Police Quest 2: Vengeance
+pq3	Police Quest 3
+pq3	Police Quest 3: The Kindred
+princess	The Princess and the Crab
+puttcircus	Putt-Putt Joins the Circus
+puttmoon	Putt-Putt Goes to the Moon
+puttputt	Putt-Putt Joins the Parade
+puttrace	Putt-Putt Enters the Race
+putttime	Putt-Putt Travels Through Time
+puttzoo	Putt-Putt Saves the Zoo
+puzzle	Simon the Sorcerer's Puzzle Pack - NoPatience
+qfg1	Quest for Glory 1/Hero's Quest
+qfg1vga	Quest for Glory 1
+qfg1vga	Quest for Glory: So You Want To Be A Hero
+qfg2	Quest for Glory 2
+qfg2	Quest for Glory 2: Trial by Fire
+qfg3	Quest for Glory 3
+qfg3	Quest for Glory 3: Wages of War
+queen	Flight of the Amazon Queen
+readtime	Blue's Reading Time Activities
+ringworld	Ringworld: Revenge Of The Patriarch
+ringworld2	Return to Ringworld
+rodney	Rodney's Funscreen
+rtz	Return to Zork
+ruff	Ruff's Bone
+samnmax	Sam & Max Hit the Road
+seussabc	Dr. Seuss's ABC
+sfinx	Sfinx
+sheila	Sheila Rae, the Brave
+simon1	Simon the Sorcerer 1
+simon2	Simon the Sorcerer 2
+sky	Beneath a Steel Sky
+slater	Slater & Charlie Go Camping
+sleepingcub	Sleeping Cub's Test of Courage
+socks	Pajama Sam's Sock Works
+soltys	Soltys
+spyfox	SPY Fox 1: Dry Cereal
+spyfox2	SPY Fox 2: Some Assembly Required
+spyozon	SPY Fox 3: Operation Ozone
+sq1	Space Quest I: The Sarien Encounter
+sq1	Space Quest 1: The Sarien Encounter
+sq1sci	Space Quest I
+sq1sci	Space Quest 1
+sq2	Space Quest II: Vohaul's Revenge
+sq2	Space Quest 2: Vohaul's Revenge
+sq3	Space Quest III
+sq3	Space Quest 3
+sq3	Space Quest 3: The Pirates of Pestulon
+sq4	Space Quest IV
+sq4	Space Quest 4
+sq4	Space Quest 4: Roger Wilco and the Time Rippers
+sq5	Space Quest V
+sq5	Space Quest 5
+sq5	Space Quest 5: The Next Mutation
+stellaluna	Stellaluna
+swampy	Simon the Sorcerer's Puzzle Pack - Swampy Adventures
+sword1	Broken Sword: The Shadow of the Templars
+sword2	Broken Sword II: The Smoking Mirror
+t7g	The 7th Guest
+teenagent	TeenAgent
+tentacle	Day of the Tentacle
+thinker1	Big Thinkers First Grade
+thinkerk	Big Thinkers Kindergarten
+toltecs	3 Skulls of the Toltecs
+tony	Tony Tough and the Night of Roasted Moths
+toon	Toonstruck
+tortoise	Aesop's Fables: The Tortoise and the Hare
+touche	Touche: The Adventures of the Fifth Musketeer
+troll	Troll's Tale
+tucker	Bud Tucker in Double Trouble
+urban	Urban Runner
+voyeur	Voyeur
+water	Freddi Fish and Luther's Water Worries
+waxworks	Waxworks
+ween	Ween: The Prophecy
+winnie	Winnie the Pooh in the Hundred Acre Wood
+woodruff	The Bizarre Adventures of Woodruff and the Schnibble
+zak	Zak McKracken and the Alien Mindbenders
+zgi	Zork: Grand Inquisitor
+znemesis	Zork Nemesis: The Forbidden Lands
