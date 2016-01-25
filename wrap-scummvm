@@ -91,6 +91,7 @@ get_scummvm_game_id () {
        [ "$_game" = "Roberta Williams' Phantasmagoria" ] || \
        [ "$_game" = "Space Quest 6 - Roger Wilco in the Spinal Frontier" ] || \
        [ "$_game" = "Betrayal at Krondor" ] || \
+       [ "$_game" = "Gabriel Knight - Sins of the Fathers" ] || \
        [ -n "$(find "$_directory"/ -iname gk_directory.gog)" ] || \
        [ -n "$(find "$_directory"/ -iname gk2dos.bat)" ] || \
        [ -n "$(find "$_directory"/ -iname express.exe)" ] || \
