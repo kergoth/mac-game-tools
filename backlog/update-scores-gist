@@ -1,4 +1,4 @@
 #!/bin/sh
 
-PATH="$(dirname "$0"):$PATH" list-scores | \
+PATH="$(dirname "$0"):$PATH" scored-games [1-6]* | \
     update-gist-generic "$@" https://gist.github.com/kergoth/308942b0d04057fd0e1a metacritic-ratings-for-my-games-backlog.txt
