@@ -107,7 +107,7 @@ for i in UTImportedTypeDeclarations UTExportedTypeDeclarations CFBundleDocumentT
 done
 
 gog_game_id="$(jq -rs 'map(select(.gameId == .rootGameId)) | .[0].gameId' "$gamedir"/goggame-*.info 2>/dev/null)" || true
-if [ -n "$gog_game_id" ]; then
+if [ -n "$gog_game_id" ] && [ "$gog_game_id" != "null" ]; then
     pb -c "Delete BXHelpLinks" "$destdir/Contents/Info.plist" >/dev/null 2>&1 || true
     pb -c "Add BXHelpLinks array" "$destdir/Contents/Info.plist"
     gog_info="$gamedir/goggame-$gog_game_id.info"
