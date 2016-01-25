@@ -12,8 +12,8 @@ for game; do
     if [ -h "$original/Game" ]; then
         orig_game_dir="$original/$(readlink "$original/Game")"
         rm -fv "$orig_game_dir/"bxlaunch*.bat
-        if [ -h "$orig_game_dir" ]; then
-            real_game_dir="${orig_game_dir%/*}/$(readlink "$orig_game_dir")"
+        if [ -L "$orig_game_dir" ]; then
+            real_game_dir="$(cd "$orig_game_dir" && pwd -P)"
             if [ -e "$real_game_dir" ]; then
                 rm "$orig_game_dir"
                 mv "$real_game_dir" "$orig_game_dir"
