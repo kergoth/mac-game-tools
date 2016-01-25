@@ -158,7 +158,7 @@ fi
 if [ -e "$boxer/game.icns" ]; then
     cp "$boxer/game.icns" "$tmp_game/Contents/Resources/app.icns"
 else
-    copymacicon "$boxer" "$tmp_game"
+    copymacicon "$boxer" "$tmp_game" || true
 fi
 mv "$tmp_game" "$destdir"
 rmdir "$tmp"
