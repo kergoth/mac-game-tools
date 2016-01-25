@@ -114,7 +114,7 @@ if [ -L Game ]; then
             rm Game
             mv "\$gamedir" Game
             ./Contents/Resources/lnr Game "\$gamedir"
-            rm -f ./Contents/Resources/lnr "\$0"
+            rm -f ./Contents/Resources/lnr "\${0##*/}"
         ) || ln -s "\$gamedir" Game
     fi
 fi
