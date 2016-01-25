@@ -1,0 +1,131 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Check only. Return 0 if the game is supported by this script, 10 if not.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+END
+    exit 1
+}
+
+process_arguments () {
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+
+    while getopts cnr:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir##*/}.app"
+    fi
+}
+
+check_supported () {
+    if [ ! -e "$gamedir/Morrowind.exe" ]; then
+        # Game unsupported
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: $gamedir is unsupported"
+        fi
+        exit 10
+    fi
+
+    if [ $check_only -eq 1 ]; then
+        exit 0
+    fi
+}
+
+locate_app_by_name () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '$*'"
+}
+
+
+process_arguments "$@"
+check_supported
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+openmw="$(locate_app_by_name "OpenMW" | sed 's,$,/Contents/MacOS/OpenMW,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/OpenMW,,')"
+if [ -z "$openmw" ]; then
+    echo >&2 "Error: unable to locate OpenMW, please make it available."
+    return 1
+fi
+echo >&2 "OpenMW: $openmw"
+
+openmw_dir="$(dirname "$openmw")"
+openmw_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$openmw/Contents/Info.plist")"
+openmw_base="OpenMW"
+if [ -n "$openmw_version" ]; then
+    openmw_base="$openmw_base - $openmw_version"
+fi
+
+new-app -fr "$openmw_dir" "$destdir"
+if [ ! -e "$destdir" ]; then
+    mv "$destdir.app" "$destdir"
+fi
+if [ "$(basename "$openmw_dir")" != "$openmw_base" ]; then
+    mv "$destdir/Contents/Resources/$(basename "$openmw_dir")" "$destdir/Contents/Resources/$openmw_base"
+fi
+
+rm -rf "$destdir/Contents/Resources/$openmw_base/data"
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$destdir/Contents/Resources/"
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+    fi
+    ln -s "../${gamedir##*/}/Data Files" "$destdir/Contents/Resources/$openmw_base/data"
+else
+    ln -s "../$rel_path/Data Files" "$destdir/Contents/Resources/$openmw_base/data"
+fi
+
+cat <<END >"$destdir/Contents/MacOS/app"
+#!/bin/sh
+cd "\$(dirname "\$0")/../Resources"
+if [ ! -e "$openmw_base/data/Morrowind.ini" ]; then
+    ln -s ../Morrowind.ini "$openmw_base/data/Morrowind.ini"
+fi
+exec open -W "$openmw_base/$(basename "$openmw")" --args "\$@"
+END
+chmod +x "$destdir/Contents/MacOS/app"
+
+game_name="${destdir%.app}"
+game_name="${game_name##*/}"
+version="$openmw_base"
+app_set_metadata -v "$version" -s "$version" \
+                 -n "$game_name" -d "$game_name" \
+                 -i "com.kergoth.openmw.$game_name" "$destdir"

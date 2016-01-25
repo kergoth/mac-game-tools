@@ -1,0 +1,242 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Check only. Return 0 if the game is supported by this script, 10 if not.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+  -i GAME_ID     Specify the ScummVM game ID
+END
+    exit 1
+}
+
+process_arguments () {
+    scriptdir="$(dirname "$0")"
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+    scummvm_game_id=
+
+    while getopts cnr:i:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            i)
+                scummvm_game_id="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir##*/}.app"
+    fi
+
+    game_name="${destdir%.app}"
+    game_name="${game_name##*/}"
+}
+
+check_supported () {
+    if [ -n "$scummvm_game_id" ]; then
+        if [ $check_only -eq 1 ]; then
+            exit 0
+        fi
+    else
+        # Game unsupported
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: $gamedir is unsupported"
+        fi
+        exit 10
+    fi
+}
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+get_scummvm_game_id () {
+    _game="$1"
+    _directory="$2"
+
+    if echo "$_game" | grep -q "Incredible Machine" || \
+       [ "$_game" = "King's Quest 7 - The Princeless Bride" ] || \
+       [ "$_game" = "Police Quest - SWAT" ] || \
+       [ "$_game" = "Quest for Glory 4 - Shadows of Darkness" ] || \
+       [ "$_game" = "Roberta Williams' Phantasmagoria" ] || \
+       [ "$_game" = "Space Quest 6 - Roger Wilco in the Spinal Frontier" ] || \
+       [ "$_game" = "Betrayal at Krondor" ] || \
+       [ -n "$(find "$_directory"/ -iname gk_directory.gog)" ] || \
+       [ -n "$(find "$_directory"/ -iname gk2dos.bat)" ] || \
+       [ -n "$(find "$_directory"/ -iname express.exe)" ] || \
+       [ -n "$(find "$_directory"/ -iname torin.exe)" ] ; then
+        # Unsupported by scummvm
+        return
+    elif [ -e "$_directory/scripts.zfs" ]; then
+        echo zgi
+        return
+    fi
+
+    scummvm_game_id_name="$(echo "$_game" | sed 's/ - /: /')"
+    scummvm_game_id="$(grep -i "   *$scummvm_game_id_name\$" <"$scummvm_wrapper_template/Contents/Resources/GameIDs.txt" <"$scriptdir/Extra_GameIDs.txt" | sed -n "s#^\([^ ]*\).*#\1#p" | head -n 1)"
+    if [ -z "$scummvm_game_id" ]; then
+        vol=$(find "$_directory/" -iname object -maxdepth 1)
+        if [ -e "$vol" ]; then
+            echo >&2 "Assuming AGI engine"
+            scummvm_game_id=agi
+        fi
+
+        resource=$(find "$_directory/" -iname "resource.map" -maxdepth 1)
+        if [ -e "$resource" ]; then
+            echo >&2 "Assuming SCI engine"
+            scummvm_game_id=sci
+        fi
+
+        mapped=$(scummvm_game_id_map | sed -n "s#^\([^ ]*\) *$scummvm_game_id_name\$#\1#p")
+        if [ -n "$mapped" ]; then
+            scummvm_game_id="$mapped"
+        fi
+    fi
+
+    case "$scummvm_game_id" in
+        kq1*|kq4*|pq1*|sq1*)
+            scummvm_game_id="${scummvm_game_id%sci}"
+            if [ -n "$(find "$_directory/" -iname "resource.map" -maxdepth 1)" ]; then
+                scummvm_game_id="${scummvm_game_id}sci"
+            fi
+            ;;
+        qfg1*)
+            scummvm_game_id="${scummvm_game_id%vga}"
+            if [ -n "$(find "$_directory/" -iname "resource.map" -maxdepth 1)" ]; then
+                scummvm_game_id="${scummvm_game_id}vga"
+            fi
+            ;;
+    esac
+    echo "$scummvm_game_id"
+}
+
+scummvm_game_id_map () {
+    cat <<END
+t7g     The 7th Guest
+rtz-cd  Return to Zork
+END
+#dreamweb-cd-us Dreamweb
+}
+
+configure_scummvm () {
+    case "$scummvm_game_id" in
+        zgi)
+            curl -s https://fedorahosted.org/releases/l/i/liberation-fonts/liberation-fonts-ttf-2.00.1.tar.gz | \
+                ( cd "$destdir/Contents/Resources" && tar -zx --strip-components=1 -f - )
+
+            # This game runs in a resolution such that advmame3x won't work
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
+            ;;
+    esac
+    case "$game_name" in
+        "King's Quest 7 - The Princeless Bride")
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
+            ;;
+        "Police Quest - SWAT")
+            plist_set SVWGFXMode 1x "$destdir/Contents/Info.plist"
+            ;;
+    esac
+}
+
+plist_set () {
+    pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+}
+
+pb () {
+    /usr/libexec/PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
+
+process_arguments "$@"
+
+scummvm_wrapper_template="$(locate_app_by_id com.dotalux.scummwrapper.svwlauncher | sed 's,$,/Contents/MacOS/scummvm,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/scummvm$,,')"
+if [ -z "$scummvm_wrapper_template" ]; then
+    echo >&2 "Error: unable to locate ScummVMWrapper, please make it available."
+    return 1
+fi
+printf "ScummVMWrapper: %s\n" "$scummvm_wrapper_template"
+
+if [ -z "$scummvm_game_id" ]; then
+    scummvm_game_id=$(get_scummvm_game_id "$game_name" "$gamedir") || true
+    if [ -z "$scummvm_game_id" ]; then
+        echo >&2 "Error: unknown scummvm game id, please specify"
+        exit 1
+    fi
+fi
+
+case "$scummvm_game_id" in
+    agi|sci)
+        echo >&2 "Error: use of generic game id '$scummvm_game_id' for '$gamedir'"
+        exit 2
+        ;;
+esac
+
+check_supported
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+echo >&2 "ScummVM Game ID: $scummvm_game_id"
+
+cp -a "$scummvm_wrapper_template" "$destdir"
+
+rm -rf "$destdir/Contents/Resources/game"
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$destdir/Contents/Resources/game"
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+    fi
+    ln -s Contents/Resources/game "$destdir/Game"
+else
+    rm -f "$destdir/Game"
+    ln -s "$rel_path" "$destdir/Contents/Resources/game"
+fi
+cat <<END >"$destdir/finalize_wrapper"
+#!/bin/sh
+app="\$(dirname "\$0")"
+/usr/libexec/PlistBuddy -c "Set CFBundleName '$(pb_escape_value "$scummvm_game_id")'" "\$app/Contents/Info.plist"
+rm -f "\$0"
+END
+chmod +x "$destdir/finalize_wrapper"
+
+# TODO: use version from ScummVM & ScummVMWrapper
+app_set_metadata -n "$scummvm_game_id" -d "$game_name" \
+                 -i "com.kergoth.scummvm.$game_name" "$destdir"
+
+configure_scummvm

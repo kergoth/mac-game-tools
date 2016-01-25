@@ -1,0 +1,132 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Given the GAME_DIR, heuristically check to see if this script should be used.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+END
+    exit 1
+}
+
+process_arguments () {
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+
+    while getopts cnr:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir##*/}.app"
+    fi
+    game_name="${destdir%.app}"
+    game_name="${game_name##*/}"
+}
+
+check_supported () {
+    if [ $check_only -eq 1 ]; then
+        if [ -n "$(find "$gamedir"/ -iname dosbox.exe)" ]; then
+            exit 0
+        else
+            exit 10
+        fi
+    fi
+}
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+adjust_identifier () {
+    printf "%s\n" "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' _
+}
+
+
+process_arguments "$@"
+check_supported
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+
+identifier="org.kergoth.gog.boxer.$(adjust_identifier "$game_name")"
+wrapper_template="$(locate_app_by_id net.washboardabs.boxer-standalone | head -n 1)"
+
+printf 'Boxer Standalone: %s\n' "$wrapper_template"
+cp -a "$wrapper_template/." "$destdir/"
+sed -i.bak -Ee "s/{{GAMEBOX_NAME}}/$game_name.boxer/; s/{{ORGANIZATION_NAME}}/kergoth@gmail.com/; s/{{ORGANIZATION_URL}}/mailto:kergoth@gmail.com/; s/{{BUNDLE_IDENTIFIER}}/$identifier/g; s/{{APPLICATION_NAME}}/$game_name/; s/{{YEAR}}/$(date +%Y)/;" "$destdir/Contents/Info.plist"
+rm -f "$destdir/Contents/Info.plist.bak"
+for i in UTImportedTypeDeclarations UTExportedTypeDeclarations CFBundleDocumentTypes; do
+    /usr/libexec/PlistBuddy -c "Delete :$i" "$destdir/Contents/Info.plist"
+done
+
+boxer="$destdir/Contents/Resources/$game_name.boxer"
+wrap-boxer -n "$gamedir" "$boxer"
+
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$boxer/C.harddisk"
+    "$boxer/finalize"
+
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+    fi
+    ln -s "${boxer#$destdir/}/C.harddisk" "$destdir/Game"
+else
+    ln -s "../$rel_path" "$boxer/C.harddisk"
+    cp -a "$(which lnr)" "$destdir/Contents/Resources/"
+    cat <<END >"$destdir/finalize_wrapper"
+#!/bin/sh
+set -e
+scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
+cd "\$scriptdir/${boxer#$destdir/}"
+gamedir="\$(cd C.harddisk && pwd -P)"
+if [ -L C.harddisk ] && [ -d "\$gamedir" ]; then
+    rm C.harddisk
+    mv "\$gamedir" C.harddisk
+    "\$scriptdir/Contents/Resources/lnr" C.harddisk "\$gamedir"
+fi
+./finalize
+rm -f "\$scriptdir/Contents/Resources/lnr" "\$0"
+END
+    chmod +x "$destdir/finalize_wrapper"
+fi
+
+if [ -e "$boxer/game.icns" ]; then
+    cp "$boxer/game.icns" "$destdir/Contents/Resources/app.icns"
+else
+    copymacicon "$boxer" "$destdir"
+fi
