@@ -89,6 +89,8 @@ identify_game_wrapper () {
         echo "scummvm"
     elif [ -e "$game/Contents/Resources" ] && [ -n "$(find "$game/Contents/Resources/" -maxdepth 2 -iname OpenMW.app)" ]; then
         echo "openmw"
+    elif [ -e "$game/OpenRCT2.app" ]; then
+        echo "openrct2"
     else
         echo unknown
     # else
