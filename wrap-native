@@ -237,7 +237,7 @@ printf 'Game type: %s\n' "$game_type"
 if [ -z "$new_game" ]; then
     new_game="$game"
     if [ $copy_wrapper -eq 1 ]; then
-        new_game="${new_game%.app} Native.app"
+        new_game="$(basename "${new_game%.app}") Native.app"
     fi
 fi
 
