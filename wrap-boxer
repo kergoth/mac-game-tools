@@ -212,7 +212,7 @@ setup_boxer_docs () {
     local gamedir="$2"
     find "$gamedir" -iname \*.pdf -o -iname \*.txt -o -iname \*.doc \
                     -iname \*.rtf -o -iname \*.htm -o -iname \*.html \
-                    -maxdepth 1 | grep -vi license | \
+                    -maxdepth 1 | { grep -vi license || true; } | \
         while read -r doc; do
             doc="${doc#$gamedir/}"
             ln -sf "../C.harddisk/$doc" "$boxer/Documentation/$doc"
