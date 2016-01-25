@@ -21,6 +21,7 @@ usage () {
     echo >&2 "  -s scummvm_game_id  Specify ScummVM game ID for the scummvm type"
     echo >&2 "  -n                  Dry-run. Print what would be done"
     echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name"
+    echo >&2 "  -f                  Force. If the game is already native, unnative it first"
     echo >&2
     echo >&2 "Ex:"
     echo >&2
@@ -36,7 +37,8 @@ process_arguments () {
     new_game=
     dry_run=0
     copy_wrapper=0
-    while getopts s:N:nch opt; do
+    force=0
+    while getopts s:N:ncfh opt; do
         case "$opt" in
             s)
                 scummvm_game_id="$OPTARG"
@@ -49,6 +51,9 @@ process_arguments () {
                 ;;
             c)
                 copy_wrapper=1
+                ;;
+            f)
+                force=1
                 ;;
             \?|h)
                 usage
@@ -66,8 +71,12 @@ process_arguments () {
     game_base="${game##*/}"
 
     if [ -e "$game/Contents/Resources/$game_base" ]; then
-        echo >&2 "Error: $game is already wrapped native"
-        exit 1
+        if [ $force -eq 1 ]; then
+            unnative "$game"
+        else
+            echo >&2 "Error: $game is already wrapped native"
+            exit 1
+        fi
     fi
 
     case "$game" in
