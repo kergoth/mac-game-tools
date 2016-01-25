@@ -42,7 +42,7 @@ create_extras () {
         while IFS="|" read name url; do
             new_webloc "$url" "$outdir/$name.webloc"
         done
-        jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -Eiv '\.(exe|bat)$' | \
+    jq <"$infofile" '.supportTasks + .playTasks | .[] | select(.isPrimary != true) | select(.type == "FileTask") | .path ' | sed 's,^",,; s,"$,,' | grep -Eiv '\.(exe|bat)$' | \
         while read path; do
             ln -svf "../$gamedir/$(echo "$path" | tr "\\" "/")" "$outdir"
         done

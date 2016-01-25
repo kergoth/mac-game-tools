@@ -65,6 +65,18 @@ check_supported () {
     fi
 }
 
+plist_add () {
+    pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
+}
+
+pb () {
+    /usr/libexec/PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
 locate_app_by_id () {
     mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
 }
@@ -93,6 +105,21 @@ rm -f "$destdir/Contents/Info.plist.bak"
 for i in UTImportedTypeDeclarations UTExportedTypeDeclarations CFBundleDocumentTypes; do
     /usr/libexec/PlistBuddy -c "Delete :$i" "$destdir/Contents/Info.plist"
 done
+
+gog_game_id="$(jq -rs 'map(select(.gameId == .rootGameId)) | .[0].gameId' "$gamedir"/goggame-*.info 2>/dev/null)" || true
+if [ -n "$gog_game_id" ]; then
+    pb -c "Delete BXHelpLinks" "$destdir/Contents/Info.plist" >/dev/null 2>&1 || true
+    pb -c "Add BXHelpLinks array" "$destdir/Contents/Info.plist"
+    gog_info="$gamedir/goggame-$gog_game_id.info"
+    count=0
+    jq <"$gog_info" '.supportTasks + .playTasks | .[] | select(.type == "URLTask") | .name + "|" + .link' | sed 's,^",,; s,"$,,' | \
+        while IFS="|" read -r title url; do
+            pb -c "Add BXHelpLinks:$count dict" "$destdir/Contents/Info.plist"
+            plist_add "BXHelpLinks:$count:BXHelpLinkURL" "$url" "$destdir/Contents/Info.plist"
+            plist_add "BXHelpLinks:$count:BXHelpLinkTitle" "$title" "$destdir/Contents/Info.plist"
+            count="$((count + 1))"
+        done
+fi
 
 boxer="$destdir/Contents/Resources/$game_name.boxer"
 wrap-boxer -n "$gamedir" "$boxer"

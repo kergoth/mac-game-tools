@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 # TODO: obey goggame-*.info for the dosbox launcher configurations
-# TODO: populate BXHelpLinks with links from the goggame info
 
 set -euo pipefail
 
