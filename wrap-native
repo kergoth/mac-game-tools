@@ -296,9 +296,8 @@ create_dosbox_wrapper () {
 
     newgame="$destdir/Contents/Resources/$game_base"
     newgamedir="$(cd "$newgame/${game_dir#$game/}" && pwd -P)"
-    game_dir="$newgamedir"
 
-    create_boxer "$boxer"
+    create_boxer "$boxer" "$newgamedir"
 
     mv "$newgamedir" "$boxer/C.harddisk"
     lnr "$boxer/C.harddisk" "$newgamedir"
@@ -311,6 +310,7 @@ boxer_identifier_prefix=com.kergoth.boxer
 scummvm_identifier_prefix=com.kergoth.scummvm
 create_boxer () {
     boxer="$1"
+    local game_dir="$2"
     mkdir -p "$boxer"
     mkdir -p "$boxer/Documentation"
 
