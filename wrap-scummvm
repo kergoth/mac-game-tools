@@ -195,8 +195,10 @@ printf "ScummVMWrapper: %s\n" "$scummvm_wrapper_template"
 if [ -z "$scummvm_game_id" ]; then
     scummvm_game_id=$(get_scummvm_game_id "$game_name" "$gamedir") || true
     if [ -z "$scummvm_game_id" ]; then
-        echo >&2 "Error: unknown scummvm game id, please specify"
-        exit 1
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: unknown scummvm game id, please specify"
+        fi
+        exit 10
     fi
 fi
 
@@ -207,7 +209,11 @@ case "$scummvm_game_id" in
         ;;
 esac
 
-check_supported
+if [ -n "$scummvm_game_id" ]; then
+    if [ $check_only -eq 1 ]; then
+        exit 0
+    fi
+fi
 
 if [ -e "$destdir" ]; then
     echo >&2 "Error: $destdir already exists, aborting"
