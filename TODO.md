@@ -19,8 +19,12 @@
   cases, just because we didn't find e.g. dosbox.exe doesn't mean the script
   should error out if it doesn't find it, so that check should only be done
   when running in check only mode.
+- Add temp dir usage to the external scripts, so the final app is renamed into
+  place in a single operation.
 - Add copymacicon to all the external scripts which use new-app, as the new
   app will otherwise have no icon at all when using a gamedir as a source.
 - Consolidate common logic amongst the external scripts.
-- Add temp dir usage to the external scripts, so the final app is renamed into
-  place in a single operation.
+- Create more wrapper scripts
+    - Doomsday
+    - Dolphin
+    - Dhewm3
