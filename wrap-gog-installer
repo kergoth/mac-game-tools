@@ -29,8 +29,13 @@ scriptdir="$(cd "$(dirname "$0")" && pwd)"
 PATH="$scriptdir:$PATH"
 
 installer="$1"
-game_name="$(gog-installer-get-name "$installer")"
-app_name="$(echo "$game_name" | tr -d :/).app"
+if [ $# -gt 1 ]; then
+    game_name="${2%.app}"
+    app_name="$game_name.app"
+else
+    game_name="$(gog-installer-get-name "$installer")"
+    app_name="$(echo "$game_name" | tr -d :/).app"
+fi
 if [ -e "$app_name" ]; then
     echo >&2 "Warning: $app_name already exists, skipping"
     exit 1
