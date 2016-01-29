@@ -23,15 +23,8 @@ set -- \
     -a '.*Demos#7 - Not Playing/Demos, Unreleased' \
     -a 'alpha|beta|demo#7 - Not Playing/Demos, Unreleased' \
     \
-    "/Volumes/My Passport/Games" \
-    "/Volumes/My Passport/Games - Benched" \
-    "/Volumes/My Passport/Games - Broken" \
-    "/Volumes/My Passport/Games - Nostalgia" \
-    "/Volumes/My Passport/Games - Unplayable" \
-    "/Volumes/My Passport/Games - Won't Play" \
-    "/Volumes/My Passport/Games - Kids & Education" \
+    "/Volumes/My Passport/Games"* \
     "/Volumes/My Passport/OpenEmu Library" \
-    \
     "/Volumes/Games Archive"
 
 ./populate_backlog "$@"
