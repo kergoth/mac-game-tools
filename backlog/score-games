@@ -152,7 +152,7 @@ find "$@" -type l | while read -r game; do
         results="$(get_imdb_rating "$search_query" "$toml")"
         write="$(echo "$results" | cut -d"	" -f1)"
         lookup_game="$(echo "$results" | cut -d"	" -f2)"
-        scores="$(echo "$results" | cut -d"	" -f3-)"
+        scores="$scores	$(echo "$results" | cut -d"	" -f3-)"
     fi
 
     if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
