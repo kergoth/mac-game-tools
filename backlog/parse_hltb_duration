@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+import datetime
+import sys
+
+
+suffixes = {
+    'w': 'weeks',
+    'd': 'days',
+    'h': 'hours',
+    'm': 'minutes',
+    's': 'seconds',
+}
+
+components = {}
+for element in sys.argv[1].split():
+    for suffix, entry in suffixes.iteritems():
+        if element.endswith(suffix):
+            components[entry] = int(element[:-len(suffix)])
+
+if not components:
+    sys.exit("No components found")
+
+delta = datetime.timedelta(**components)
+print(int(delta.total_seconds()))

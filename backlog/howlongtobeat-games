@@ -1,0 +1,150 @@
+#!/bin/bash
+
+set -euo pipefail
+
+htmldecode () {
+    python -c "import HTMLParser,sys; print(HTMLParser.HTMLParser().unescape(sys.argv[1]))" "$*"
+}
+
+howlongtobeat_id () {
+    local hltb_gameid hltb_title
+    hltb_gameid="$1"
+    hltb_title="$(http --check-status --ignore-stdin http://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.profile_header text{}' | sed '/^ *$/d; s/^ *//; s/ $//g;')"
+    htmldecode "$hltb_title"
+    http --check-status --ignore-stdin http://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.game_main_table tbody.spreadsheet:first-of-type json{}' | jq -r '.[].children | select(.[].children[].text == "Main Story") | .[].children[2].text'
+}
+
+ddg () {
+    http --check-status --ignore-stdin https://duckduckgo.com/html/ q=="$*" | pup '.links_main > a attr{href}'
+}
+
+ddg_search () {
+    ddg site:http://howlongtobeat.com/game.php "$*"
+}
+
+goog () {
+    # http --check-status --ignore-stdin www.google.com/search q=="$*" | pup 'h3.r a attr{href}' | sed -n -e 's/^\/url?q=//; s/&.*//'
+    http --check-status --ignore-stdin www.google.com/search q=="$*" | pup 'h3.r a attr{href}' | python -c 'import sys, urlparse; print("\n".join(urlparse.parse_qs(urlparse.urlparse(l.rstrip()).query)["q"][0] for l in sys.stdin.readlines()))'
+}
+
+goog_search () {
+    goog site:http://howlongtobeat.com/game.php "$*"
+}
+
+howlongtobeat () {
+    local hltb_id
+    hltb_id="$(echo "$1" | sed -ne 's/.*id=\([0-9]*\).*/\1/p')"
+    echo "$hltb_id"
+    howlongtobeat_id "$hltb_id"
+}
+
+hltb_search () {
+    local rel_link
+    rel_link="$(http --check-status --ignore-stdin -f POST http://howlongtobeat.com/search_main.php queryString="$*" plat=PC | pup 'a attr{href}')" || return $?
+    if [ -n "$rel_link" ]; then
+        printf "http://howlongtobeat.com/%s\n" "$rel_link"
+    fi
+}
+
+retrieve_hltb () {
+    local search_query="$1"
+    local toml="$2"
+    local write hltb_url hltb_id hltb_title hltb
+    write=0
+
+    hltb="$(toml-get howlongtobeat.time.main_story <"$toml" 2>/dev/null)"
+    hltb_title="$(toml-get howlongtobeat.title <"$toml" 2>/dev/null)"
+    if [ -z "$hltb" ] || [ -z "$hltb_title" ]; then
+        hltb_url="$(toml-get howlongtobeat.url <"$toml" 2>/dev/null)"
+        if [ $? -ne 0 ]; then
+            hltb_url="$(hltb_search "$search_query" | head -n 1)"
+            if [ -z "$hltb_url" ]; then
+                hltb_id=0
+                hltb_title="##invalid##"
+                hltb=0s
+            fi
+        fi
+        if [ -n "$hltb_url" ]; then
+            hltb_info="$(howlongtobeat "$hltb_url" | tr '\n' '|')"
+            if [ -z "$hltb_info" ]; then
+                hltb_id=0
+                hltb_title="##invalid##"
+                hltb=0s
+            else
+                hltb_id="$(echo "$hltb_info" | cut -d"|" -f1)"
+                hltb_title="$(echo "$hltb_info" | cut -d"|" -f2)"
+                hltb="$(echo "$hltb_info" | cut -d"|" -f3)"
+                if [ -z "$hltb" ]; then
+                    # No howlongtobeat times
+                    hltb=0s
+                fi
+            fi
+        fi
+        hltb="$(parse_hltb_duration "$hltb")"
+        hltb="$((hltb / 60))"
+
+        if ! toml-get howlongtobeat <"$toml" >/dev/null 2>&1; then
+            echo '[howlongtobeat]' >>"$toml"
+        fi
+        if ! toml-get howlongtobeat.time <"$toml" >/dev/null 2>&1; then
+            echo '[howlongtobeat.time]' >>"$toml"
+        fi
+        cat "$toml" | \
+            toml-set howlongtobeat.id "$hltb_id" howlongtobeat.time.main_story "$hltb" | \
+            toml-set-string howlongtobeat.url "$hltb_url" howlongtobeat.title "$hltb_title" >"$toml.new" && \
+            mv "$toml.new" "$toml"
+        write=1
+    fi
+
+    printf "%d\t%s\t%s\n" "$write" "$hltb_title" "$hltb"
+}
+
+pretty_hltb_mins () {
+    python -c 'import sys; minutes = int(sys.argv[1]); days, minutes = divmod(minutes, 24*60); hours, minutes = divmod(minutes, 60); print("%dd:%dh:%dm" % (days, hours, minutes))' "$@"
+}
+
+scriptdir="$(dirname "$0")"
+PATH="$scriptdir:$PATH"
+
+if [ $# -eq 0 ]; then
+    set -- [0-9]*
+fi
+
+if which gshuf &>/dev/null; then
+    delay () {
+        sleep "$(seq 10 60 | gshuf -n 1)"
+    }
+elif which shuf &>/dev/null; then
+    delay () {
+        sleep "$(seq 10 60 | shuf -n 1)"
+    }
+else
+    delay () {
+        sleep 10
+    }
+fi
+
+quiet=0
+find "$@" -type l | while read -r game; do
+    base="$(basename "$game" | sed 's,\.app$,,')"
+    search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
+    toml="_metadata/$base.toml"
+    touch "$toml"
+
+    results="$(retrieve_hltb "$search_query" "$toml")" || continue
+    write="$(echo "$results" | cut -d"	" -f1)"
+    lookup_game="$(echo "$results" | cut -d"	" -f2)"
+    hltb="$(echo "$results" | cut -d"	" -f3-)"
+    if [ "$hltb" != "0" ]; then
+        hltb="$(pretty_hltb_mins "$hltb")"
+    else
+        hltb=Unknown
+    fi
+
+    if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
+        printf "%s\t%s\t%s\n" "$game" "$lookup_game" "$hltb"
+        if [ "$write" -eq 1 ]; then
+            delay
+        fi
+    fi
+done
