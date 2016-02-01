@@ -1,0 +1,43 @@
+#!/bin/sh
+
+threshold=75
+while getopts t:h opt; do
+    case "$opt" in
+        t)
+            threshold="$OPTARG"
+            ;;
+        \?|h)
+            echo >&2 "Usage: ${0##*/} [options] PATH [PATH..]"
+            echo >&2
+            echo >&2 "Options:"
+            echo >&2
+            echo >&2 "  -t THRESHOLD    Games less than THRESHOLD/100 are excluded. Default: 75"
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -eq 0 ]; then
+    set -- 1\ -\ On\ Deck 2\ -\ Next 4\ -\ Incomplete 5\ -\ Backlog
+fi
+
+pretty_hltb_mins () {
+    python -c 'import sys; minutes = int(sys.argv[1]); days, minutes = divmod(minutes, 24*60); hours, minutes = divmod(minutes, 60); print("%dd:%dh:%dm" % (days, hours, minutes))' "$@"
+}
+
+./score-games "$@" | \
+    while IFS="	" read -r game _ scores; do
+        sort_field="$(echo "$scores" | perl -ne 's/\.//g; s/00/0/g; while(s/^0	//){}; print($_);')"
+        score="0.$(echo "$sort_field" | tr -d '	')"
+        if python -c 'import sys; sys.exit(not (float(sys.argv[1]) < (int(sys.argv[2]) / 100.0)))' "$score" "$threshold"; then
+            # Filter out low scores
+            continue
+        fi
+        hltb="$(toml-get howlongtobeat.time.main_story <"_metadata/$(basename "${game%.app}").toml" 2>/dev/null)"
+        if [ $? -eq 0 ] && [ "$hltb" != "0" ]; then
+            sort_field="$(python -c 'import sys; print(int((1/float(sys.argv[1])) * int(sys.argv[2])))' "$score" "$hltb")"
+            pretty_hltb="$(pretty_hltb_mins "$hltb")"
+            printf '%s\t%s\t%s|%s\n' "$game" "$pretty_hltb" "$scores" "$sort_field"
+        fi
+    done | grep -v '|0$' | sort -ns -k 2,2 -t"|" | cut -d"|" -f1 | ${PAGER:-less}
