@@ -23,7 +23,7 @@ if [ $# -eq 0 ]; then
 fi
 
 pretty_hltb_mins () {
-    python -c 'import sys; minutes = int(sys.argv[1]); days, minutes = divmod(minutes, 24*60); hours, minutes = divmod(minutes, 60); print("%dd:%dh:%dm" % (days, hours, minutes))' "$@"
+    python -c 'import sys; minutes = int(sys.argv[1]); hours, minutes = divmod(minutes, 60); print("%d Hours, %d Minutes" % (hours, minutes))' "$@"
 }
 
 ./score-games "$@" | \
@@ -40,4 +40,4 @@ pretty_hltb_mins () {
             pretty_hltb="$(pretty_hltb_mins "$hltb")"
             printf '%s\t%s\t%s|%s\n' "$game" "$pretty_hltb" "$scores" "$sort_field"
         fi
-    done | grep -v '|0$' | sort -ns -k 2,2 -t"|" | cut -d"|" -f1 | ${PAGER:-less}
+    done | grep -v '|0$' | sort -ns -k 2,2 -t"|" | cut -d"|" -f1 | sed -e 's/	0 Hours, /	/' | ${PAGER:-less}
