@@ -1,10 +1,15 @@
 #!/bin/sh
 
+column_max=112
 threshold=75
-while getopts t:h opt; do
+columnate=0
+while getopts t:ch opt; do
     case "$opt" in
         t)
             threshold="$OPTARG"
+            ;;
+        c)
+            columnate=1
             ;;
         \?|h)
             echo >&2 "Usage: ${0##*/} [options] PATH [PATH..]"
@@ -26,6 +31,20 @@ pretty_hltb_mins () {
     python -c 'import sys; minutes = int(sys.argv[1]); hours, minutes = divmod(minutes, 60); print("%d Hours, %d Minutes" % (hours, minutes))' "$@"
 }
 
+min () {
+    python -c 'import sys; print(min(*sys.argv[1:]))' "$@"
+}
+
+if [ $columnate -eq 1 ] || [ -t 1 ]; then
+    col () {
+        column -t -s "	" -c "$(min "${COLUMNS:-$column_max}" 112)" | ${PAGER:-less}
+    }
+else
+    col () {
+        cat
+    }
+fi
+
 ./score-games "$@" | \
     while IFS="	" read -r game _ scores; do
         sort_field="$(echo "$scores" | perl -ne 's/\.//g; s/00/0/g; while(s/^0	//){}; print($_);')"
@@ -40,4 +59,4 @@ pretty_hltb_mins () {
             pretty_hltb="$(pretty_hltb_mins "$hltb")"
             printf '%s\t%s\t%s|%s\n' "$game" "$pretty_hltb" "$scores" "$sort_field"
         fi
-    done | grep -v '|0$' | sort -ns -k 2,2 -t"|" | cut -d"|" -f1 | sed -e 's/	0 Hours, /	/' | ${PAGER:-less}
+    done | grep -v '|0$' | sort -ns -k 2,2 -t"|" | cut -d"|" -f1 | sed -e 's/	0 Hours, /	/' | col | ${PAGER:-less}
