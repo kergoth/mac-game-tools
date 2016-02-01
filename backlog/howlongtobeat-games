@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: if we have no main story times, pull the average from all playstyles
 
 set -euo pipefail
 
@@ -107,7 +108,7 @@ scriptdir="$(dirname "$0")"
 PATH="$scriptdir:$PATH"
 
 if [ $# -eq 0 ]; then
-    set -- [0-9]*
+    set -- [12456]*
 fi
 
 if which gshuf &>/dev/null; then
