@@ -36,16 +36,12 @@ find "7 - Not Playing" -type l | while read l; do
 
     f="$(abs_readlink "$l")"
     f="${f%/}"
-    if [ ! -e "$f" ]; then
-        echo >&2 "Error: $f does not exist, skipping"
-        continue
-    fi
 
     case "$(identify-game-wrapper -q "$f")" in
         steam)
             dest="/Volumes/My Passport/${dest#$archive/}"
-            echo >&2 "Skipping move of native steam game $f"
-            echo >&2 "Changed dest to $dest"
+            # echo >&2 "Skipping move of native steam game $f"
+            # echo >&2 "Changed dest to $dest"
             ;;
     esac
 
@@ -58,7 +54,7 @@ find "7 - Not Playing" -type l | while read l; do
             vol_rel=${f#/Volumes/}
             vol_name="${f%%/*}"
             if [ ! -d "/Volumes/$vol_name" ]; then
-                echo >&2 "$vol_name is not mounted, skipping $f"
+                # echo >&2 "$vol_name is not mounted, skipping $f"
                 continue
             fi
 
@@ -69,6 +65,11 @@ find "7 - Not Playing" -type l | while read l; do
                     continue
                     ;;
             esac
+
+            if [ ! -e "$f" ]; then
+                echo >&2 "Error: $f does not exist, skipping"
+                continue
+            fi
 
             reldir="$(dirname "$relpath")"
             if [ "$reldir" != "." ]; then
