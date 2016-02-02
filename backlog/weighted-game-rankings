@@ -1,6 +1,5 @@
 #!/bin/sh
 
-column_max=112
 threshold=75
 columnate=0
 while getopts t:ch opt; do
@@ -37,7 +36,7 @@ min () {
 
 if [ $columnate -eq 1 ] || [ -t 1 ]; then
     col () {
-        column -t -s "	" -c "$(min "${COLUMNS:-$column_max}" 112)" | ${PAGER:-less}
+        column -t -s "	" | ${PAGER:-less}
     }
 else
     col () {
