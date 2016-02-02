@@ -1,6 +1,6 @@
 #!/bin/sh
 
-threshold=75
+threshold=85
 columnate=0
 while getopts t:ch opt; do
     case "$opt" in
@@ -15,7 +15,7 @@ while getopts t:ch opt; do
             echo >&2
             echo >&2 "Options:"
             echo >&2
-            echo >&2 "  -t THRESHOLD    Games less than THRESHOLD/100 are excluded. Default: 75"
+            echo >&2 "  -t THRESHOLD    Games less than THRESHOLD/100 are excluded. Default: 85"
             exit 1
             ;;
     esac
