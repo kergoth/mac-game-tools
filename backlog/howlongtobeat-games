@@ -104,8 +104,12 @@ pretty_hltb_mins () {
     python -c 'import sys; minutes = int(sys.argv[1]); days, minutes = divmod(minutes, 24*60); hours, minutes = divmod(minutes, 60); print("%dd:%dh:%dm" % (days, hours, minutes))' "$@"
 }
 
-scriptdir="$(dirname "$0")"
-PATH="$scriptdir:$PATH"
+script="$0"
+while [ -h "$script" ]; do
+    script="$(abs_readlink "$script")"
+done
+scriptdir="$(cd "$(dirname "$script")" && pwd -P)"
+PATH="$scriptdir:${scriptdir%/*}:$PATH"
 
 if [ $# -eq 0 ]; then
     set -- [12456]*
