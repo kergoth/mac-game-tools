@@ -34,6 +34,8 @@ def main(cmdline_args):
                              'Passing the empty string will reset the schemes '
                              'up to that point. #-separated '
                              '(ex. ".*/Broken/#7 - Not Playing/Broken, Unplayable")')
+    parser.add_argument('-n', '--dry-run', action='store_true',
+                        help='Dry run. Show what would be done.')
     args = parser.parse_args(cmdline_args)
 
     # FIXME: check for games which are in multiple locations: either weight
@@ -102,12 +104,15 @@ def main(cmdline_args):
                 print('-{0} -> {1}'.format(p_to_remove, remove_dest))
             else:
                 print('-{0}'.format(p_to_remove))
-            os.unlink(to_remove)
+            if not args.dry_run:
+                os.unlink(to_remove)
+
         if to_add:
             p_to_add = to_add.replace(args.backlog_path + os.sep, '')
             print('+{0} -> {1}'.format(p_to_add, add_dest))
-            mkdir(os.path.dirname(to_add))
-            os.symlink(add_dest, to_add)
+            if not args.dry_run:
+                mkdir(os.path.dirname(to_add))
+                os.symlink(add_dest, to_add)
 
 
 class ArgumentParser(argparse.ArgumentParser):
