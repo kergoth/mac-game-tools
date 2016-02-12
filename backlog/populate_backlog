@@ -38,11 +38,16 @@ def main(cmdline_args):
                         help='Dry run. Show what would be done.')
     args = parser.parse_args(cmdline_args)
 
-    # FIXME: check for games which are in multiple locations: either weight
-    # them, or skip & warn on those
-    game_paths = []
+    game_paths, seen = [], {}
     for directory in args.paths:
-        game_paths.extend(find_apps(directory, excluded=args.excluded))
+        for game in find_apps(directory, excluded=args.excluded):
+            base = os.path.basename(game)
+            if base in seen:
+                sys.stderr.write('Warning: duplicate of %s found at %s, skipping\n' % (game, seen[base]))
+                continue
+            else:
+                seen[base] = game
+                game_paths.append(game)
 
     link_games_paths, name_games_paths = [], []
     for p in game_paths:
