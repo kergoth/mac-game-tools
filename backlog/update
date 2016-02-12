@@ -25,7 +25,8 @@ set -- \
     \
     "/Volumes/My Passport/Games"* \
     "/Volumes/My Passport/OpenEmu Library" \
-    "/Volumes/Games Archive"
+    "/Volumes/Games Archive" \
+    "$@"
 
 ./populate_backlog "$@"
 ./populate_by_tag -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
