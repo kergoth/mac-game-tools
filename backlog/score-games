@@ -138,6 +138,7 @@ shift $((OPTIND - 1))
 
 base_url=http://www.metacritic.com/game/pc
 
+mkdir -p _metadata
 find "$@" -type l | while read -r game; do
     base="$(basename "$game" | sed 's,\.app$,,')"
     search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
