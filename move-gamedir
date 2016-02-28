@@ -1,11 +1,12 @@
 #!/bin/sh
 
-app="$1"
-if [ -h "$app/Game" ]; then
-    gamedir="$(cd "$app" && abspath "$(readlink Game)")"
-    if [ -h "$gamedir" ]; then
-        move-dir-back-in "$gamedir"
-    else
-        move-dir-out "$gamedir"
+for app; do
+    if [ -h "$app/Game" ]; then
+        gamedir="$(cd "$app" && abspath "$(readlink Game)")"
+        if [ -h "$gamedir" ]; then
+            move-dir-back-in "$gamedir"
+        else
+            move-dir-out "$gamedir"
+        fi
     fi
-fi
+done
