@@ -16,7 +16,7 @@ if [ "$type" = "windows (wineskin)" ]; then
 
     gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
         printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
-        continue
+        exit 1
     }
     gamedir="${gameexe%/*}"
     if [ -e "$exclude_game/drive_c" ]; then
@@ -25,14 +25,12 @@ if [ "$type" = "windows (wineskin)" ]; then
         drive="$exclude_game/Contents/Resources/drive_c"
     fi
 elif [ "$type" = "windows (cider)" ]; then
-    gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || continue
+    gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || exit 1
     gamedir="${gamedir#C:}"
     gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
     drive="$game/Contents/Resources/transgaming/c_drive"
 else
     exit 1
-#     echo >&2 "Error: No 'Game' symlink for '$game', unable to determine gamedir for type '$type', skipping"
-#     :
 fi
 if [ -z "$drive" ]; then
     echo >&2 "Error: drive is empty?"
