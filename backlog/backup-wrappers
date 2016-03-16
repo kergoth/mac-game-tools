@@ -1,0 +1,114 @@
+#!/bin/bash
+
+IFS=$'\n\t'
+set -eu
+
+rsync_cmd () {
+    #command rsync -aNAHXx --info=progress2 --fileflags --force-change --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes --protect-decmpfs "$@"
+    command rsync -aNAXx --info=progress2 --fileflags --force-change --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes --protect-decmpfs "$@"
+}
+
+walk_up () {
+    local walk_path
+    walk_path="$(cd "${1:-$PWD}" && pwd -P)"
+    while [ -n "$walk_path" ]; do
+        echo "$walk_path"
+        walk_path="${walk_path%/*}"
+    done
+}
+
+gamedir_root () {
+    result="$1"
+    for path in $(walk_up "$result"); do
+        case "$path" in
+            */Program\ Files/Steam/*)
+                echo "${path%%/Program Files/Steam/*}/Program Files/Steam"
+                return
+                ;;
+            */Program\ Files)
+                echo "$result"
+                return
+                ;;
+            */GOG\ Games)
+                echo "$result"
+                return
+                ;;
+            */drive_[c-z])
+                echo "$result"
+                return
+                ;;
+            */[c-z]_drive)
+                echo "$result"
+                return
+                ;;
+        esac
+        result="$path"
+    done
+}
+
+if [ $# -lt 1 ]; then
+    echo >&2 "Usage: ${0##*/} DESTDIR"
+    exit 2
+fi
+
+scriptdir="$(dirname "$0")"
+destdir="${1%/}"
+shift
+
+if [ $# -eq 0 ]; then
+    set -- [0-9]*
+fi
+
+mkdir -p "$destdir"
+
+include="$(mktemp -t "wrapper-backup.XXXXXX")"
+exclude="$(mktemp -t "wrapper-backup.XXXXXX")"
+trap 'rm -f $include $exclude' EXIT INT TERM
+
+backupdate="$(date -u '+%Y-%m-%dT%H%M%SZ')"
+
+locate_app () {
+	mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
+# ccc="$(locate_app "Carbon Copy Cloner")"
+for game in $(find "$@" -type l -print0 | xargs -0 abs_readlink); do
+    type="$(identify-game-wrapper -q "$game")" || continue
+    case "$type" in
+        windows*)
+            ;;
+        *)
+            continue
+            ;;
+    esac
+
+    echo >&2 "Game: $game"
+    game_dir="$game/$(get-gamedir "$game")" || continue
+    if [ -e "$game_dir" ]; then
+        game_dir="$(cd "$game_dir" && pwd -P)"
+        echo >&2 "Game dir: $game_dir"
+        game_dir_root="$(gamedir_root "$game_dir")"
+        if [ -n "$game_dir_root" ] && [ "$game_dir" != "$game_dir_root" ]; then
+            echo >&2 "Game dir root: $game_dir_root"
+            game_dir="$game_dir_root"
+        fi
+
+        echo "/${game_dir#*.app/}" | sed 's/\*/\\*/g; s/?/\\?/g; s/\[/\\[/g' >"$exclude"
+    else
+        echo >&2 "Warning: $game_dir does not exist"
+        >"$exclude"
+    fi
+
+    rel_game="$(echo "$game" | sed "s,^/Volumes/[^/]*/,,")"
+    game_destdir="$destdir/$rel_game"
+    echo >&2 "Game dest: $game_destdir"
+    mkdir -p "$game_destdir"
+
+    echo . >"$include"
+    rsync_cmd -r --delete --delete-excluded --files-from="$include" --exclude-from="$exclude" "$game/" "$game_destdir/"
+    # "$ccc/Contents/MacOS/rsync" --progress --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate/$rel_game" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$game/" "$game_destdir/" 2>/dev/null | grep -v DEBUG
+    if [ -d "$game_destdir/${game_dir#*.app/}" ]; then
+        printf >&2 'Error: game dir for "%s" exists after rsync, aborting\n' "$game"
+        exit 1
+    fi
+done
