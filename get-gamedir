@@ -5,9 +5,13 @@ relpath () {
 }
 
 game="$1"
-if [ -L "$game/Game" ] && [ -e "$(abs_readlink "$game/Game")" ]; then
-    abs_readlink "$game/Game"
-    exit 0
+if [ -L "$game/Game" ]; then
+    if [ -e "$(abs_readlink "$game/Game")" ]; then
+        readlink "$game/Game"
+        exit 0
+    else
+        echo >&2 "Warning: 'Game' symlink is dead"
+    fi
 fi
 
 type="${2:-$(identify-game-wrapper -q "$game")}"
