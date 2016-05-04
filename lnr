@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+#
+# Create a *relative* symlink, just like ln --relative does but without needing
+# coreutils 8.16.
+#
+# TODO: default LINK_NAME to .
+# TODO: support multiple targets when creating links in a directory
+# TODO: add -v, -f, etc
+#
+# Usage: ln [OPTION]... [-T] TARGET LINK_NAME   (1st form)
+#   or:  ln [OPTION]... TARGET                  (2nd form)
+#   or:  ln [OPTION]... TARGET... DIRECTORY     (3rd form)
+
+from __future__ import print_function
+import errno
+import os
+import sys
+
+
+if len(sys.argv) != 3:
+    print("Usage: lnr TARGET LINK_NAME", file=sys.stderr)
+    print("  or:  lnr TARGET EXISTING_SUBDIR", file=sys.stderr)
+    print("  or:  lnr TARGET SUBDIR/", file=sys.stderr)
+    sys.exit(1)
+
+cmd = os.path.basename(__file__)
+target = sys.argv[1]
+linkname = sys.argv[2]
+
+if (linkname.endswith(os.sep) or
+        (os.path.exists(linkname) and os.path.isdir(linkname))):
+    if not os.path.exists(linkname):
+        sys.exit("{}: {}: {}".format(cmd, linkname, os.strerror(errno.ENOENT)))
+    linkname = os.path.join(linkname, os.path.basename(target))
+
+start = os.path.realpath(os.path.dirname(linkname))
+target = os.path.relpath(target, start)
+try:
+    os.symlink(target, linkname)
+except (IOError, OSError) as exc:
+    sys.exit("{}: {}: {}".format(cmd, linkname, os.strerror(exc.errno)))

@@ -1,39 +1,70 @@
 #!/bin/sh
 
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -l    Symlink the GAME_DIR rather than copying
+END
+    exit 1
+}
+
+process_arguments () {
+    symlink=0
+
+    while getopts lh opt; do
+        case "$opt" in
+            l)
+                symlink=1
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd)"
+    if [ $# -gt 1 ]; then
+        game_name="${2%.app}"
+    else
+        game_name="${gamedir##*/}"
+    fi
+    app_name="$(echo "$game_name" | tr -d :/).app"
+}
+
 wrap_install () {
     wrap_installdir="$1"
     wrap_out="$2"
     wrap_name="$3"
 
     new-gog-wrapper "$wrap_out" "$wrap_name"
-    cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+    if [ $symlink -eq 1 ]; then
+        lnr "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+    else
+        cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+    fi
     rm -f "$wrap_out/Game"
     ln -s "drive_c/GOG Games/$wrap_name" "$wrap_out/Game"
     rm -f "$wrap_out/finalize_gog" "$wrap_out/Contents/Resources/finalize_gog"
     finalize_gog "$wrap_out"
-    if [ -d "$wrap_out" ]; then
-        mv "$wrap_out" "$wrap_name.app"
-    fi
 }
 
-
-if [ $# -eq 0 ]; then
-    echo >&2 "Usage: ${0##*/} GOG_INSTALLDIR [GAME_NAME]"
-    exit 2
-fi
-
-set -eu
 
 scriptdir="$(cd "$(dirname "$0")" && pwd)"
 PATH="$scriptdir:$PATH"
 
-installdir="$(cd "$1" && pwd -P)"
-if [ $# -gt 1 ]; then
-    game_name="$2"
-else
-    game_name="${installdir##*/}"
-fi
-app_name="$(echo "$game_name" | tr -d :/).app"
+process_arguments "$@"
+
 if [ -e "$app_name" ]; then
     echo >&2 "Warning: $app_name already exists, skipping"
     exit 1
@@ -44,4 +75,7 @@ tmp="$(mktemp -d "${0##*/}.XXXXXX")"
 rmdir "$tmp"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-wrap_install "$installdir" "$tmp" "$game_name"
+wrap_install "$gamedir" "$tmp" "$game_name"
+if [ -d "$tmp" ]; then
+    mv "$tmp" "$app_name"
+fi
