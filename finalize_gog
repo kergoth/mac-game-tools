@@ -73,13 +73,10 @@ fi
 
 cd "$1"
 game="$PWD"
-gamedir="$(find "drive_c/GOG Games" -depth 1 -type d 2>/dev/null | head -n 1)"
+gamedir="$(get-gamedir "$game")"
 if [ -z "$gamedir" ]; then
-    gamedir="$(find "drive_c/Program Files/GalaxyClient/Games" -depth 1 -type d -not -name '!Downloads' | head -n 1)"
-    if [ -z "$gamedir" ]; then
-        echo >&2 "Error: game install directory not found"
-        exit 3
-    fi
+    echo >&2 "Error: game install directory not found"
+    exit 3
 fi
 rm -f Game
 ln -sv "$gamedir" Game

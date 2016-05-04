@@ -108,23 +108,16 @@ for game; do
     game="$(cd "$game" && pwd)"
     cd "$game" || exit 3
 
-    if [ -h Game ]; then
-        if [ ! -d Game ]; then
-            die "The 'Game' symlink is broken" 4
-        fi
-        gamedir="$(readlink Game)"
-    else
-        gamedir="$(find "drive_c/GOG Games" -depth 1 -type d 2>/dev/null | head -n 1)"
-        if [ -z "$gamedir" ]; then
-            gamedir="$(find "drive_c/Program Files/GalaxyClient/Games" -depth 1 -type d -not -name '!Downloads' | head -n 1)"
-            if [ -z "$gamedir" ]; then
-                die "Game install directory not found" 3
-            fi
-        fi
+    gamedir="$(get-gamedir "$game")"
+    if [ -z "$gamedir" ]; then
+        echo >&2 "Error: game install directory not found"
+        exit 3
     fi
+    rm -f Game
+    ln -sv "$gamedir" Game
     mkdir -p Extras
 
-    if [ $(find "$gamedir" -maxdepth 1 -iname goggame-\*.info | wc -l) -eq 0 ]; then
+    if [ $(find "$gamedir/" -maxdepth 1 -iname goggame-\*.info | wc -l) -eq 0 ]; then
         die "No goggame-*.info found in the game directory '$gamedir'" 4
     fi
 
