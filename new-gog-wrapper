@@ -56,14 +56,17 @@ rm "$wrapper_path/Games"
 
 cp "$scriptdir/finalize_gog" "$wrapper_path/Contents/Resources/"
 cp "$scriptdir/finalize_galaxy" "$wrapper_path/Contents/Resources/"
+cp "$scriptdir/get-gamedir" "$wrapper_path/Contents/Resources/"
 cat >"$wrapper_path/finalize_gog" <<END
 #!/bin/sh
 scriptdir="\$(cd "\$(dirname "\$0")" && pwd -P)"
 "\$scriptdir/Contents/Resources/finalize_gog" "\$scriptdir" && \
     rm -fv "\$0" && \
-    rm -fv "\$scriptdir/Contents/Resources/finalize_gog"
+    rm -fv "\$scriptdir/Contents/Resources/finalize_gog" && \
+    rm -fv "\$scriptdir/Contents/Resources/get-gamedir"
 if [ \$? -eq 0 ] && [ ! -e "\$scriptdir/finalize_galaxy" ]; then
-    rm -fv "\$scriptdir/Contents/Resources/finalize_galaxy"
+    rm -fv "\$scriptdir/Contents/Resources/finalize_galaxy" && \
+    rm -fv "\$scriptdir/Contents/Resources/get-gamedir"
 fi
 END
 chmod +x "$wrapper_path/finalize_gog"
