@@ -73,10 +73,19 @@ def main(cmdline_args):
         link_path = backlog_by_name[game]
         old_game_path = os.readlink(link_path)
         old_dest = os.path.dirname(link_path.replace(args.backlog_path + os.sep, ''))
-        dest = get_link_destination(game_path, args.unsorted_dir, args.auto_schemes)
+        new_dest = dest = get_link_destination(game_path, args.unsorted_dir, args.auto_schemes)
         if dest == args.unsorted_dir:
             dest = old_dest
+
         if old_game_path != game_path or old_dest != dest:
+            if old_game_path != game_path:
+                # Game physically moved on disk. If the auto categorization
+                # would place it in its current location in the backlog given
+                # its old path, then move it to a new location based on auto
+                # categorization, rather than leaving it where it is.
+                old_auto_dest = get_link_destination(old_game_path, args.unsorted_dir, args.auto_schemes)
+                if old_auto_dest == old_dest and new_dest != old_dest:
+                    dest = new_dest
             actions.append((link_path, old_game_path, os.path.join(dest, game), game_path))
 
     in_backlog_only = in_backlog - in_game_dirs
