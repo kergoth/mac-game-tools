@@ -16,30 +16,44 @@ fi
 
 type="${2:-$(identify-game-wrapper -q "$game")}"
 exclude_game="$game"
-if [ "$type" = "windows (wineskin)" ]; then
-    if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
-        # Grab underlying app
-        exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
-    fi
-
-    gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
-        printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
+if [ "$type" = "gog" ]; then
+    # Grab underlying app
+    exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
+    if [ -z "$exclude_game" ]; then
         exit 1
-    }
-    gamedir="${gameexe%/*}"
-    if [ -e "$exclude_game/drive_c" ]; then
-        drive="$exclude_game/drive_c"
-    else
-        drive="$exclude_game/Contents/Resources/drive_c"
     fi
-elif [ "$type" = "windows (cider)" ]; then
-    gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || exit 1
-    gamedir="${gamedir#C:}"
-    gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
-    drive="$game/Contents/Resources/transgaming/c_drive"
-else
-    exit 1
+    type="${2:-$(identify-game-wrapper -q "$exclude_game")}"
 fi
+
+case "$type" in
+    "windows (wineskin)")
+        if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
+            # Grab underlying app
+            exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
+        fi
+
+        gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
+            printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
+            exit 1
+        }
+        gamedir="${gameexe%/*}"
+        if [ -e "$exclude_game/drive_c" ]; then
+            drive="$exclude_game/drive_c"
+        else
+            drive="$exclude_game/Contents/Resources/drive_c"
+        fi
+        ;;
+    "windows (cider)")
+        gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || exit 1
+        gamedir="${gamedir#C:}"
+        gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
+        drive="$game/Contents/Resources/transgaming/c_drive"
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+
 if [ -z "$drive" ]; then
     echo >&2 "Error: drive is empty?"
 fi
