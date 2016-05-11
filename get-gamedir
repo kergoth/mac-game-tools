@@ -26,6 +26,26 @@ if [ "$type" = "gog" ]; then
 fi
 
 case "$type" in
+    "dos (boxer standalone)")
+        boxer="$(find "$exclude_game/Contents/Resources/" -iname \*.boxer -maxdepth 1)"
+        if [ -z "$boxer" ]; then
+            echo >&2 "Error: Unable to locate .boxer for boxer standalone"
+            exit 1
+        fi
+
+        if [ ! -e "$boxer/C.harddisk" ]; then
+            echo >&2 "Error: no C.harddisk?"
+            exit 1
+        fi
+
+        if [ $(find "$boxer/C.harddisk" -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
+            dir="$(find "$boxer/C.harddisk" -mindepth 1 -maxdepth 1)"
+            echo "$boxer/C.harddisk/$dir"
+        else
+            echo "$boxer/C.harddisk"
+        fi
+        exit 0
+        ;;
     "windows (wineskin)")
         if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
             # Grab underlying app
