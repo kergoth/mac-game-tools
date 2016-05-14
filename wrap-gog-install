@@ -8,18 +8,26 @@ Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
 
 Options:
 
-  -l    Symlink the GAME_DIR rather than copying
+  -l    Symlink the GAME_DIR
+  -m    Move the GAME_DIR
+  -c    Copy the GAME_DIR (default)
 END
     exit 1
 }
 
 process_arguments () {
-    symlink=0
+    mode=copy
 
-    while getopts lh opt; do
+    while getopts lmch opt; do
         case "$opt" in
             l)
-                symlink=1
+                mode=symlink
+                ;;
+            m)
+                mode=move
+                ;;
+            c)
+                mode=copy
                 ;;
             h|\?)
                 usage
@@ -48,11 +56,17 @@ wrap_install () {
     wrap_name="$3"
 
     new-gog-wrapper "$wrap_out" "$wrap_name"
-    if [ $symlink -eq 1 ]; then
-        lnr "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
-    else
-        cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
-    fi
+    case "$mode" in
+        copy)
+            cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            ;;
+        move)
+            mv "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            ;;
+        symlink)
+            lnr "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            ;;
+    esac
     rm -f "$wrap_out/Game"
     ln -s "drive_c/GOG Games/$wrap_name" "$wrap_out/Game"
     rm -f "$wrap_out/finalize_gog" "$wrap_out/Contents/Resources/finalize_gog"
