@@ -33,7 +33,7 @@ process_arguments () {
         usage
     fi
 
-    gamedir="$(cd "$1" && pwd)"
+    gamedir="$(cd "$1" && pwd -P)"
     if [ $# -gt 1 ]; then
         game_name="${2%.app}"
     else
