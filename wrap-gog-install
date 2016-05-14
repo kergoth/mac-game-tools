@@ -11,14 +11,16 @@ Options:
   -l    Symlink the GAME_DIR
   -m    Move the GAME_DIR
   -c    Copy the GAME_DIR (default)
+  -t TEMPLATE_PATH  Path to the Wineskin wrapper template. Default: find with spotlight
 END
     exit 1
 }
 
 process_arguments () {
+    template=
     mode=copy
 
-    while getopts lmch opt; do
+    while getopts lmct:h opt; do
         case "$opt" in
             l)
                 mode=symlink
@@ -28,6 +30,13 @@ process_arguments () {
                 ;;
             c)
                 mode=copy
+                ;;
+            t)
+                template="$OPTARG"
+                if [ ! -e "$template" ]; then
+                    echo >&2 "Error: template path '$template' does not exist"
+                    usage
+                fi
                 ;;
             h|\?)
                 usage
@@ -55,7 +64,12 @@ wrap_install () {
     wrap_out="$2"
     wrap_name="$3"
 
-    new-gog-wrapper "$wrap_out" "$wrap_name"
+    if [ -n "$template" ]; then
+        new-gog-wrapper -t "$template" "$wrap_out" "$wrap_name"
+    else
+        new-gog-wrapper "$wrap_out" "$wrap_name"
+    fi
+
     case "$mode" in
         copy)
             cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
