@@ -55,6 +55,19 @@ if [ ! -e "$dos32a" ]; then
     exit 1
 fi
 
+set -- "$@" --
+while true; do
+    arg="$1"
+    shift || break
+    case "$arg" in
+        --)
+            break
+            ;;
+    esac
+    arg="$(cd "$arg" && pwd -P)"
+    set -- "$@" "$arg"
+done
+
 find "$@" -iname \*.exe | grep -Evi 'dos32a|setup|install|DOS Toolkit|\.cdrom/' | sed 's,\(.*/\).*,\1,' | sort -u | while read gamedir; do
     echo >&2 "Processing $gamedir"
 
@@ -68,7 +81,11 @@ find "$@" -iname \*.exe | grep -Evi 'dos32a|setup|install|DOS Toolkit|\.cdrom/' 
         fi
     done
     echo "exit" >>"$gamedir"/dos32a.bat
-    open -nW -a DOSBox "$gamedir/dos32a.bat"
+    if which dosbox >/dev/null 2>&1; then
+        dosbox -c "MOUNT C \"$gamedir\"" -c "C:" -c "dos32a.bat" #-c "exit"
+    else
+        open -nW -a DOSBox "$gamedir/dos32a.bat"
+    fi
     rm -rf "$gamedir/dos32a/" "$gamedir/dos32a.bat"
 done
 
