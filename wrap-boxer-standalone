@@ -143,7 +143,7 @@ else
 #!/bin/sh
 set -e
 scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
-cd "\$scriptdir/${boxer#$tmp_game/}"
+cd "\$scriptdir/Contents/Resources/$game_name.boxer"
 gamedir="\$(cd C.harddisk && pwd -P)"
 if [ -L C.harddisk ] && [ -d "\$gamedir" ]; then
     rm C.harddisk
