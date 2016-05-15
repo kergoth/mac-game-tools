@@ -18,7 +18,9 @@ usage () {
     echo >&2 "  -N NEW_GAME         Specify the name of the new .app"
     echo >&2 "  -s scummvm_game_id  Specify ScummVM game ID for the scummvm type"
     echo >&2 "  -n                  Dry-run. Print what would be done"
+    echo >&2 "  -l                  Symlink, don't move the original, and suffix the new wrapper name"
     echo >&2 "  -c                  Copy, don't move the original, and suffix the new wrapper name"
+    echo >&2 "  -m                  Move the original (default)"
     echo >&2 "  -f                  Force. If the game is already native, unnative it first"
     echo >&2
     echo >&2 "Ex:"
@@ -34,9 +36,9 @@ process_arguments () {
     scummvm_game_id=
     new_game=
     dry_run=0
-    copy_wrapper=0
+    wrapper_mode=move
     force=0
-    while getopts s:N:ncfh opt; do
+    while getopts s:N:nlcmfh opt; do
         case "$opt" in
             s)
                 scummvm_game_id="$OPTARG"
@@ -47,8 +49,14 @@ process_arguments () {
             n)
                 dry_run=1
                 ;;
+            l)
+                wrapper_mode=link
+                ;;
             c)
-                copy_wrapper=1
+                wrapper_mode=copy
+                ;;
+            m)
+                wrapper_mode=move
                 ;;
             f)
                 force=1
@@ -69,7 +77,7 @@ process_arguments () {
     game_base="${game##*/}"
 
     if [ -e "$game/Contents/Resources/$game_base" ]; then
-        if [ $copy_wrapper -eq 0 ]; then
+        if [ $wrapper_mode = move ]; then
             if [ $force -eq 1 ]; then
                 unnative "$game"
             else
@@ -152,12 +160,19 @@ wrap_app () {
     to="$2"
     shift 2
 
-    if [ $copy_wrapper -eq 1 ]; then
-        wrap-app -n "$@" "$from" "$to"
-        cp -a "$from" "$to/Contents/Resources/"
-    else
-        wrap-app "$@" "$from" "$to"
-    fi
+    case $wrapper_mode in
+        link)
+            wrap-app -n "$@" "$from" "$to"
+            ln -s "$(cd "$from" && pwd -P)" "$to/Contents/Resources/"
+            ;;
+        copy)
+            wrap-app -n "$@" "$from" "$to"
+            cp -a "$from" "$to/Contents/Resources/"
+            ;;
+        move)
+            wrap-app "$@" "$from" "$to"
+            ;;
+    esac
 
     # Sanity check
     if [ ! -e "$destdir/Contents/Resources/$game_base" ]; then
@@ -236,16 +251,19 @@ printf 'Game type: %s\n' "$game_type"
 
 if [ -z "$new_game" ]; then
     new_game="$game"
-    if [ $copy_wrapper -eq 1 ]; then
+    if [ $wrapper_mode != move ]; then
         new_game="$(basename "${new_game%.app}") Native.app"
     fi
 fi
 
-if [ $copy_wrapper -eq 1 ] && [ -e "$new_game" ]; then
-    echo >&2 "Error: $new_game already exists, aborting"
-fi
-
 printf 'New Game Path: %s\n' "$new_game"
+
+if [ -e "$new_game" ]; then
+    if [ $wrapper_mode != move ]; then
+        echo >&2 "Error: $new_game already exists, aborting"
+        exit 1
+    fi
+fi
 
 if [ $dry_run -eq 1 ]; then
     exit 0
