@@ -45,7 +45,7 @@ process_arguments () {
         usage
     fi
 
-    gamedir="$(cd "$1" && pwd)"
+    gamedir="$(cd "$1" && pwd -P)"
     if [ $# -gt 1 ]; then
         destdir="${2%.app}.app"
     else
