@@ -103,7 +103,7 @@ process_arguments () {
                 game_dir="$_game/$(readlink "$_game/Game")"
             else
                 echo >&2 "Warning: Game symlink does not exist or is invalid, attempting automatic"
-                game_dir="$_game/$(get-gamedir "$_game")"
+                game_dir="$(get-gamedir "$_game")"
                 if [ -z "$game_dir" ]; then
                     usage
                 fi
@@ -184,7 +184,7 @@ wrap_app () {
 # Replace supplementary app symlinks with wrappers
 create_extra_app_wrappers () {
     find "$1" -type l -mindepth 1 -maxdepth 1 -iname \*.app | grep -v Wineskin | \
-        while read extra_app; do
+        while read -r extra_app; do
             extra_app="${extra_app#$1/}"
             new_app="$1/${extra_app%.app}.new.app"
             new-app -V GOG -I "org.kergoth.wrapper.$(adjust_identifier "${extra_app%.app}")" "${new_app%.app}"
