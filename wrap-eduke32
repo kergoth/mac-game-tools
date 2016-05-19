@@ -1,0 +1,138 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Check only. Return 0 if the game is supported by this script, 10 if not.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+END
+    exit 1
+}
+
+process_arguments () {
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+
+    while getopts cnr:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd -P)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir##*/}.app"
+    fi
+}
+
+check_supported () {
+    if [ -z "$(find "$gamedir"/ -iname duke3d.grp -maxdepth 1)" ]; then
+        # Game unsupported
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: $gamedir is unsupported"
+        fi
+        exit 10
+    fi
+
+    if [ $check_only -eq 1 ]; then
+        exit 0
+    fi
+}
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+
+process_arguments "$@"
+check_supported
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+eduke32="$(locate_app_by_id "com.eduke32" | sed 's,$,/Contents/MacOS/eduke32,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/eduke32,,')"
+if [ -z "$eduke32" ]; then
+    echo >&2 "Error: unable to locate EDuke32, please make it available."
+    return 1
+fi
+echo >&2 "EDuke32: $eduke32"
+
+new-app "$destdir"
+if [ ! -e "$destdir" ]; then
+    mv "$destdir.app" "$destdir"
+fi
+copymacicon "$eduke32" "$destdir"
+cp -a "$eduke32" "$destdir/Contents/Resources/"
+ln -s "Contents/Resources/${eduke32##*/}" "$destdir"
+ln -s "$rel_path/DUKE.RTS" "$destdir/Contents/Resources/"
+ln -s "$rel_path/DUKE3D.GRP" "$destdir/Contents/Resources/"
+
+rm -rf "$destdir/Game"
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$destdir/Game"
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+    fi
+else
+    cp -a "$(which lnr)" "$destdir/Contents/Resources/"
+    cat <<END >"$destdir/finalize_wrapper"
+#!/bin/sh
+cd "\$(dirname "\$0")"
+gamedir="Contents/Resources/\$rel_path"
+if [ -L Game ]; then
+    gamedir="\$(readlink Game)"
+    if [ -d "\$gamedir" ]; then
+        (
+            set -e
+            rm Game
+            mv "\$gamedir" Game
+            ./Contents/Resources/lnr Game "\$gamedir"
+            rm -f ./Contents/Resources/lnr "\${0##*/}"
+        ) || ln -s "\$gamedir" Game
+    fi
+fi
+END
+    chmod +x "$destdir/finalize_wrapper"
+fi
+
+cat <<END >"$destdir/Contents/MacOS/app"
+#!/bin/sh
+cd "\$(dirname "\$0")/../Resources"
+exec ./EDuke32.app/Contents/MacOS/eduke32 -setup "\$@"
+END
+chmod +x "$destdir/Contents/MacOS/app"
+
+game_name="${destdir%.app}"
+game_name="${game_name##*/}"
+app_set_metadata -n "$game_name" -d "$game_name" \
+                 -i "com.kergoth.eduke32.$game_name" "$destdir"
