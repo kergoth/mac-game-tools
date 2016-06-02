@@ -33,3 +33,5 @@ set -- \
 ./update-gist
 ./score-games -q [1-6]*
 ./update-scores-gist
+./howlongtobeat-games -q [12456]*
+./update-rankings-gist [12456]*
