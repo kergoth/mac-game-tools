@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]; then
+    set -- [1-6]*
+fi
+
+PATH="$(dirname "$0"):$PATH" weighted-game-rankings -c -t 90 "$@" | \
+    update-gist-generic https://gist.github.com/kergoth/e1c1656372a85259f828 weighted-game-rankings-90.txt
+PATH="$(dirname "$0"):$PATH" weighted-game-rankings -c -t 85 "$@" | \
+    update-gist-generic https://gist.github.com/kergoth/e1c1656372a85259f828 weighted-game-rankings-85.txt
