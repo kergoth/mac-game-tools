@@ -129,8 +129,24 @@ else
     }
 fi
 
+scriptdir="$(dirname "$0")"
 quiet=0
-find "$@" -type l | while read -r game; do
+while getopts qh opt; do
+    case "$opt" in
+        q)
+            quiet=1
+            ;;
+        \?|h)
+            echo >&2 "Usage: ${0##*/} [-q] PATH [PATH..]"
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+mkdir -p _metadata
+
+find "$@" -iname \*.app -prune | while read -r game; do
     base="$(basename "$game" | sed 's,\.app$,,')"
     search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
     toml="_metadata/$base.toml"
