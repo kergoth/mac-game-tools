@@ -1,0 +1,132 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] ACF_FILE [DEST_APP]
+
+Options:
+
+  -m                Move the ACF_FILE and DATA_DIR, rather than copying
+  -t TEMPLATE_PATH  Path to the Wineskin wrapper template. Default: find with spotlight
+END
+    exit 1
+}
+
+process_arguments () {
+    template=
+    move=0
+
+    while getopts lmct:h opt; do
+        case "$opt" in
+            m)
+                move=1
+                ;;
+            t)
+                template="$OPTARG"
+                if [ ! -e "$template" ]; then
+                    echo >&2 "Error: template path '$template' does not exist"
+                    usage
+                fi
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    acf_file="$1"
+    if [ ! -f "$acf_file" ]; then
+        echo >&2 "Error: $acf_file must be an existing file"
+        usage
+    fi
+
+    if [ $# -gt 1 ]; then
+        game_name="${2%.app}"
+    else
+        game_name="$(vdf-get AppState.name <"$acf_file")"
+    fi
+    app_name="$(echo "$game_name" | tr -d :/).app"
+}
+
+abs_readlink () {
+    for arg; do
+        abspath "$(readlink "$arg")" "$(dirname "$arg")"
+    done
+}
+
+abspath () {
+    _path="$1"
+    if [ -n "${_path##/*}" ]; then
+        _path="${2:-$PWD}/$1"
+    fi
+    echo "$_path"
+}
+
+main () {
+    local acf_file="$1"
+    local wrap_out="$2"
+    local wrap_name="$3"
+
+    if [ -n "$template" ]; then
+        new-steam-wrapper -t "$template" "$wrap_out" "$wrap_name"
+    else
+        new-steam-wrapper "$wrap_out" "$wrap_name"
+    fi
+
+    installdir="$(vdf-get AppState.installdir <"$acf_file")"
+    for i in "common/$installdir" "$installdir"; do
+        maindir="$(dirname "$acf_file")/$i"
+        if [ -d "$(dirname "$acf_file")/$i" ]; then
+            break
+        else
+            maindir=
+        fi
+    done
+
+    if [ -z "$maindir" ]; then
+        echo >&2 "Error: unable to locate install directory $installdir for $acf_file"
+        return 1
+    fi
+
+    steamapps="drive_c/Program Files/Steam/SteamApps"
+    mkdir -p "$wrap_out/$steamapps/common"
+    if [ $move -eq 1 ]; then
+        mv "$acf_file" "$wrap_out/$steamapps/"
+        mv "$maindir" "$wrap_out/$steamapps/common/"
+    else
+        cp -a "$acf_file" "$wrap_out/$steamapps/"
+        cp -a "$maindir" "$wrap_out/$steamapps/common/"
+    fi
+    rm -f "$wrap_out/Game"
+    ln -s "$steamapps/common/$installdir" "$wrap_out/Game"
+    "$wrap_out/finalize"
+}
+
+
+scriptdir="$(cd "$(dirname "$0")" && pwd)"
+PATH="$scriptdir:$PATH"
+
+process_arguments "$@"
+
+if [ -e "$app_name" ]; then
+    echo >&2 "Warning: $app_name already exists, skipping"
+    exit 1
+fi
+echo >&2 "Creating $app_name"
+
+tmp="$(mktemp -d "${0##*/}.XXXXXX")"
+rmdir "$tmp"
+trap 'rm -rf "$tmp"' EXIT INT TERM
+
+main "$acf_file" "$tmp" "$game_name"
+if [ -d "$tmp" ]; then
+    mv "$tmp" "$app_name"
+fi

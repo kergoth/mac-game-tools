@@ -1,0 +1,99 @@
+#!/bin/sh
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+locate_app () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
+usage () {
+    echo >&2 "Usage: ${0##*/} [-t TEMPLATE_PATH] WRAPPER_PATH [WRAPPER_NAME]"
+    exit 2
+}
+
+process_arguments () {
+    template=
+
+    while getopts t:h opt; do
+        case "$opt" in
+            t)
+                template="$OPTARG"
+                if [ ! -e "$template" ]; then
+                    echo >&2 "Error: template path '$template' does not exist"
+                    usage
+                fi
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    wrapper_path="$1"
+    if [ -e "$wrapper_path" ]; then
+        echo >&2 "Error: $wrapper_path already exists"
+        exit 1
+    fi
+
+    if [ $# -eq 2 ]; then
+        wrapper_name="$2"
+    else
+        wrapper_name="$(basename "$wrapper_path" | sed -e "s/\.app$//")"
+    fi
+}
+
+plist_set () {
+    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3/Contents/Info.plist"
+}
+
+
+set -e
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+process_arguments "$@"
+
+if [ -z "$template" ]; then
+    template="$HOME/Applications/Saved/Game Wrapper Tools/Steam Template.app"
+    # template="$(locate_app_by_id "Steam Template542582350Wine.wineskin.prefs" | head -n 1)"
+    # template="$(locate_app "Steam Template.app" | grep -v Backup | head -n 1)"
+    # template="$(locate_app_by_id "org.kergoth.gog.Steam Template" | head -n 1)"
+    if [ -z "$template" ]; then
+        # template="$(locate_app_by_id "Steam Template.Wineskin.prefs" | head -n 1)"
+        # if [ -z "$template" ]; then
+            echo >&2 "Error: unable to locate 'Steam Template.app'"
+            exit 2
+        # fi
+    fi
+fi
+echo >&2 "Template: $template"
+cp -a "$template" "$wrapper_path"
+plist_set CFBundleIdentifier "org.kergoth.steam.$(printf "%s" "$wrapper_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')" "$wrapper_path"
+plist_set CFBundleName "$wrapper_name" "$wrapper_path"
+plist_set CFBundleDisplayName "$wrapper_name" "$wrapper_path"
+plist_set CFBundleShortVersionString Steam "$wrapper_path"
+
+cp -a "$(which finalize_steam_wrapper)" "$(which finalize_wrapper)" "$(which disable_steam_redists)" "$wrapper_path/Contents/Resources/"
+vdf_dir="$(dirname "$(which vdf-get)")"
+cp -a "$vdf_dir/vdf-get" "$vdf_dir/vdf" "$wrapper_path/Contents/Resources/"
+
+cat >"$wrapper_path/finalize" <<END
+#!/bin/sh
+cd "\$(dirname "\$0")"
+Contents/Resources/finalize_steam_wrapper "\$PWD" && \
+    rm -f finalize Contents/Resources/finalize_* Contents/Resources/disable_steam_redists Contents/Resources/vdf*
+END
+chmod +x "$wrapper_path/finalize"
+
+if which tag >/dev/null 2>&1; then
+    tag -a Game "$wrapper_path"
+fi
