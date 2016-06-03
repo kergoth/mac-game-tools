@@ -50,13 +50,31 @@ process_arguments () {
         usage
     fi
 
-    gamedir="$(cd "$1" && pwd -P)"
+    gamedir="$(cd "$1" && pwd)"
     if [ $# -gt 1 ]; then
         game_name="${2%.app}"
     else
+        if [ -h "$gamedir" ]; then
+            gamedir="$(abs_readlink "$gamedir")"
+        fi
         game_name="${gamedir##*/}"
     fi
+    gamedir="$(cd "$1" && pwd -P)"
     app_name="$(echo "$game_name" | tr -d :/).app"
+}
+
+abs_readlink () {
+    for arg; do
+        abspath "$(readlink "$arg")" "$(dirname "$arg")"
+    done
+}
+
+abspath () {
+    _path="$1"
+    if [ -n "${_path##/*}" ]; then
+        _path="${2:-$PWD}/$1"
+    fi
+    echo "$_path"
 }
 
 wrap_install () {
@@ -83,8 +101,8 @@ wrap_install () {
     esac
     rm -f "$wrap_out/Game"
     ln -s "drive_c/GOG Games/$wrap_name" "$wrap_out/Game"
-    rm -f "$wrap_out/finalize_gog" "$wrap_out/Contents/Resources/finalize_gog"
-    finalize_gog "$wrap_out"
+    cp -f "$scriptdir/finalize_gog" "$scriptdir/finalize_galaxy" "$wrap_out/Contents/Resources/"
+    "$wrap_out/finalize_gog"
 }
 
 
