@@ -115,9 +115,13 @@ if [ -e "$from_app/Extras" ]; then
     done
 fi
 
-find "$from_app" -iname \*.app -mindepth 1 -maxdepth 1 | \
-    grep -v Wineskin | while read extra_app; do
-        ln -s "$destpath/$from_base/${extra_app#$from_app/}" "$to_app/"
+( cd "$from_app" && find . -iname \*.app -mindepth 1 -maxdepth 1 ) | \
+    while read extra_app; do
+        if [ -e "$to_app/$extra_app" ] && [ ! -h "$to_app/$extra_app" ]; then
+            continue
+        fi
+        rm -f "$to_app/$extra_app"
+        ln -s "$destpath/$from_base/$extra_app" "$to_app/"
     done
 
 if [ $move -eq 1 ]; then
