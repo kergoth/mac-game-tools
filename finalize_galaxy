@@ -117,7 +117,7 @@ for game; do
     ln -sv "$gamedir" Game
     mkdir -p Extras
 
-    if [ $(find "$gamedir/" -maxdepth 1 -iname goggame-\*.info | wc -l) -eq 0 ]; then
+    if [ $(find "$(cd "$gamedir" && pwd -P)" -maxdepth 1 -iname goggame-\*.info | wc -l) -eq 0 ]; then
         die "No goggame-*.info found in the game directory '$gamedir'" 4
     fi
 
