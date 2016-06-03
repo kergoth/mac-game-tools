@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+
+import vdf
+import sys
+
+obj = vdf.load(sys.stdin)
+for key in sys.argv[1:]:
+    print(reduce(lambda x, y: x[y], key.split("."), obj))
