@@ -80,6 +80,7 @@ if [ -z "$gamedir" ]; then
 fi
 rm -f Game
 ln -sv "$gamedir" Game
+gamedir="$(cd "$game/$gamedir" && pwd -P)"
 
 mkdir -p Extras
 infofile="$(find "$gamedir" -name goggame-\*.info -maxdepth 1)"
