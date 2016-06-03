@@ -1,0 +1,8 @@
+#!/bin/bash
+
+IFS=$'\n\t'
+for game_link in $(find [0-9]* -type l); do
+    if [ -L "$(abs_readlink "$game_link")" ]; then
+        echo "$game_link"
+    fi
+done
