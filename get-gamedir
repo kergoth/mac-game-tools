@@ -4,106 +4,181 @@ relpath () {
     python -c "import os, sys; print(os.path.relpath(*sys.argv[1:]))" "$@"
 }
 
+abspath () {
+    _path="$1"
+    if [ -n "${_path##/*}" ]; then
+        _path="${2:-$PWD}/$1"
+    fi
+    echo "$_path"
+}
+
+abs_readlink () {
+    for arg; do
+        abspath "$(readlink "$arg")" "$(dirname "$arg")"
+    done
+}
+
 get_gamedir () {
-    type="${2:-$(identify-game-wrapper -q "$game")}"
-    if [ "$type" = "gog" ]; then
-        # Grab underlying app
-        exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
-        if [ -z "$exclude_game" ]; then
-            exit 1
+    local gamedir=
+    local game="$1"
+
+    if [ -L "$game/Game" ]; then
+        if [ -e "$(abs_readlink "$game/Game")" ]; then
+            gamedir="$(readlink "$game/Game")"
+        else
+            echo >&2 "Warning: 'Game' symlink is dead"
         fi
-        type="${2:-$(identify-game-wrapper -q "$exclude_game")}"
     fi
 
-    case "$type" in
+    if [ -n "$gamedir" ]; then
+        echo "$gamedir"
+        return 0
+    fi
+
+    if [ -e "$game/Contents/Resources/game/scummvm" ] && \
+       [ -e "$game/Contents/Resources/game/game" ]; then
+        # GOG scummvm wrapper
+        echo Contents/Resources/game/game
+        return 0
+    elif [ -e "$game/Contents/Resources/scummvm" ] && \
+         [ -e "$game/Contents/Resources/game" ]; then
+        echo Contents/Resources/game
+        return 0
+    fi
+
+    local game_type="${2:-$(identify-game-wrapper -q "$game")}"
+    case "$game_type" in
         "dos (boxer standalone)")
-            boxer="$(find "$exclude_game/Contents/Resources/" -iname \*.boxer -maxdepth 1)"
+            boxer="$(find "$game/Contents/Resources/" -iname \*.boxer -maxdepth 1)"
             if [ -z "$boxer" ]; then
                 echo >&2 "Error: Unable to locate .boxer for boxer standalone"
-                exit 1
+                return 1
             fi
 
-            if [ ! -e "$boxer/C.harddisk" ]; then
-                echo >&2 "Error: no C.harddisk?"
-                exit 1
+            harddisk=
+            if [ $(find "$boxer" -type d -iname \*.harddisk -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
+                harddisk="$(find "$boxer" -type d -iname \*.harddisk -mindepth 1 -maxdepth 1)"
+            elif [ -e "$boxer/C.harddisk" ]; then
+                if [ $(find "$boxer" -type d -iname \*.harddisk -mindepth 1 -maxdepth 1 | wc -l) -eq 2 ]; then
+                    # Handling a specific case for gog wrappers
+                    if [ $(find "$boxer/C.harddisk" -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
+                        if [ -e "$boxer/C.harddisk/bxlaunch.bat" ]; then
+                            harddisk="$(find "$boxer" -type d -iname \*.harddisk -not -iname C.harddisk -mindepth 1 -maxdepth 1)"
+                        fi
+                    fi
+                else
+                    # Sane default
+                    harddisk="$boxer/C.harddisk"
+                fi
             fi
 
-            if [ $(find "$boxer/C.harddisk" -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
-                dir="$(find "$boxer/C.harddisk" -mindepth 1 -maxdepth 1)"
-                gamedir="$boxer/C.harddisk/$dir"
+            if [ -z "$harddisk" ]; then
+                echo >&2 "Error: unable to determine harddisk for boxer file '$boxer'"
+                return 2
+            fi
+
+            if [ $(find "$harddisk" -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
+                gamedir="$(find "$harddisk" -mindepth 1 -maxdepth 1)"
             else
-                gamedir="$boxer/C.harddisk"
+                gamedir="$harddisk"
             fi
+            gamedir="$(relpath "$gamedir" "$game")"
             ;;
         "windows (wineskin)")
             if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$game/Contents/Info.plist")" = "GOGLauncher" ]; then
                 # Grab underlying app
-                exclude_game="$(echo "$game/Contents/Resources/game/"*.app)"
+                game="$(echo "$game/Contents/Resources/game/"*.app)"
+                gamedir="$(get-gamedir "$game")"
             fi
 
-            gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$exclude_game/Contents/Info.plist")" || {
-                printf >&2 "Error extracting path for '%s'\n" "$exclude_game"
-                exit 1
+            local gameexe="$(/usr/libexec/PlistBuddy -c 'Print "Program Name and Path"' "$game/Contents/Info.plist")" || {
+                printf >&2 "Error extracting path for '%s'\n" "$game"
+                return 1
             }
             gamedir="${gameexe%/*}"
-            if [ -e "$exclude_game/drive_c" ]; then
-                drive="$exclude_game/drive_c"
+            local drive
+            if [ -e "$game/drive_c" ]; then
+                drive="drive_c"
             else
-                drive="$exclude_game/Contents/Resources/drive_c"
+                drive="Contents/Resources/drive_c"
             fi
+            gamedir="$drive/$gamedir"
             ;;
         "windows (cider)")
             gamedir="$(/usr/libexec/PlistBuddy -c 'Print "CedegaGameDir"' "$game/Contents/Info.plist")" || exit 1
             gamedir="${gamedir#C:}"
             gamedir="$(printf '%s' "$gamedir" | tr "\\" '/')"
-            drive="$game/Contents/Resources/transgaming/c_drive"
+            local drive="Contents/Resources/transgaming/c_drive"
+            gamedir="$drive/$gamedir"
+            echo "$gamedir"
+            ;;
+        "scummvm (scummvmwrapper)")
+            gamedir=Contents/Resources/game
             ;;
         *)
-            exit 1
+            echo >&2 "Unsupported game type '$game_type' for '$game'"
+            ls -l "$game/Contents/MacOS" | sed 's,^,  ,' >&2
+            return 1
             ;;
     esac
+    echo "$gamedir"
 }
 
 gamedir=
-game="$1"
-exclude_game="$game"
-if [ -L "$game/Game" ]; then
-    if [ -e "$(abs_readlink "$game/Game")" ]; then
-        gamedir="$(readlink "$game/Game")"
-    else
-        echo >&2 "Warning: 'Game' symlink is dead"
+game="${1%/}"
+orig_game="$game"
+
+gamedir_prefix=
+while true; do
+    wrapped_game=
+    if [ -e "$game/Contents/MacOS/GOGLauncher" ] || [ -e "$game/Contents/MacOS/Launcher" ]; then
+        if [ -d "$game/Contents/Resources/game" ]; then
+            wrapped_game="$(find "$game/Contents/Resources/game" -iname \*.app -mindepth 1 -maxdepth 1 | head -n 1)"
+        fi
+    elif [ -e "$game/Contents/Resources/${game##*/}" ]; then
+        wrapped_game="$game/Contents/Resources/${game##*/}"
     fi
-fi
+    if [ -n "$wrapped_game" ]; then
+        gamedir_prefix="$gamedir_prefix/$(relpath "$wrapped_game" "$game")"
+        game="$wrapped_game"
+    else
+        break
+    fi
+done
+
 if [ -z "$gamedir" ]; then
-    get_gamedir
+    gamedir="$(get_gamedir "$game")" || exit $?
 fi
 
-if [ -z "$drive" ]; then
-    drive="$exclude_game/drive_c"
-    if [ ! -e "$drive" ]; then
-        echo >&2 "Error: drive not set?"
-        exit 1
-    fi
+gamedir_prefix="${gamedir_prefix#/}"
+if [ -n "$gamedir_prefix" ]; then
+    gamedir="$gamedir_prefix/$gamedir"
 fi
-gamedir="${gamedir#/}"
+
 case "$gamedir" in
-    "$exclude_game"/)
+    */Program\ Files/Steam)
+        gamedir="$(cd "$game" && find "$gamedir/SteamApps/common" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
         ;;
-    *)
-        gamedir="$exclude_game/$gamedir"
+    */Program\ Files/GalaxyClient)
+        drive="$(dirname "$(dirname "$gamedir")")"
+        gamedir=
+        for gamesdir in "GOG Games" "Program Files/GOG.com"; do
+            if [ -d "$gamesdir" ]; then
+                gamedir="$(cd "$game" && find "$drive/$gamesdir" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
+                if [ -n "$gamedir" ]; then
+                    break
+                fi
+            fi
+        done
         ;;
 esac
-if [ -n "$drive" ]; then
-    drive="$(relpath "$drive" "$exclude_game")"
-    rel_gamedir="$(relpath "$gamedir" "$exclude_game/$drive")"
-    if [ "$rel_gamedir" = "Program Files/Steam" ]; then
-        gamedir="$(cd "$game/$drive" && find "$gamedir/SteamApps/common" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
-    elif [ "$rel_gamedir" = "Program Files/GalaxyClient" ]; then
-        gamedir="$(cd "$game/$drive" && find "GOG Games" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
-    else
-        gamedir="$rel_gamedir"
-    fi
-    echo "$drive/$gamedir"
-else
-    echo "$gamedir"
+
+if [ -z "$gamedir" ]; then
+    echo >&2 "Error: no game directory found in $game"
+    exit 2
 fi
+if [ ! -e "$orig_game/$gamedir" ]; then
+    echo >&2 "Error: game dir '$gamedir' does not exist in '$orig_game'"
+    exit 3
+fi
+echo "$gamedir"
