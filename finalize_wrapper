@@ -2,6 +2,14 @@
 #
 # Version 0.4
 
+configure_icon () {
+    icon_file="$1"
+    icon_gamedest="$2"
+    icondest="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$icon_gamedest/Contents/Info.plist")"
+    makeicns -in "$icon_file" -out "$icon_gamedest/Contents/Resources/$icondest"
+    sips -i "$icon_gamedest/Contents/Resources/$icondest"
+}
+
 PATH=/usr/libexec:$PATH
 
 installdest="$1"
@@ -44,7 +52,11 @@ rmdir "$app/Icons" 2>/dev/null || true
 
 icondest="$(PlistBuddy -c "Print :CFBundleIconFile" "$app/Contents/Info.plist")"
 if [ -d "$app/Icons" ] && [ -n "$icondest" ]; then
-    cat >"$app/Icons/finish" <<END
+    if [ $(find "$app/Icons" -iname \*.ico -mindepth 1 -maxdepth 1 | wc -l) -eq 1 ]; then
+        icon="$(find "$app/Icons" -iname \*.ico -mindepth 1 -maxdepth 1)"
+        configure_icon "$icon" "$app" && rm -rf "$app/Icons"
+    else
+        cat >"$app/Icons/finish" <<END
 #!/bin/sh
 
 scriptdir="\$(cd "\$(dirname "\$0")" && pwd)"
@@ -57,8 +69,9 @@ if ls *.icns &>/dev/null; then
     rm -rf "\$scriptdir"
 fi
 END
-    chmod +x "$app/Icons/finish"
-    open "$app/Icons"
+        chmod +x "$app/Icons/finish"
+        open "$app/Icons"
+    fi
 elif [ -d "$app/Extras" ]; then
     open "$app/Extras"
 fi
