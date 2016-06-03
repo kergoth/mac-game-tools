@@ -2,5 +2,17 @@
 
 PATH="$(dirname "$0"):$PATH"
 
-finalize_wrapper "$1/$(readlink "$1/Game")"
+finalize_wrapper "$1/$(readlink "$1/Game")" "$1"
 disable_steam_redists "$1"
+
+plist_set () {
+    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3"
+}
+
+acf="$(find "$1/drive_c/Program Files/Steam/SteamApps" -iname \*.acf -mindepth 1 -maxdepth 1 | head -n 1)"
+if [ -n "$acf" ]; then
+    appid="$(vdf-get AppState.appid <"$acf")"
+    if [ -n "$appid" ]; then
+        plist_set "Program Flags" "-applaunch $appid" "$1/Contents/Info.plist"
+    fi
+fi
