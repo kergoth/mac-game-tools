@@ -81,6 +81,8 @@ cp -a "$(which finalize_wrapper)" "$(which makeicns)" "$wrapper_path/Contents/Re
 
 cat >"$wrapper_path/finalize" <<END
 #!/bin/sh
+set -e
+
 cd "\$(dirname "\$0")"
 
 rm -f Game
@@ -110,9 +112,8 @@ case "\$(readlink Game)" in
         ;;
 esac
 /usr/libexec/PlistBuddy -c "Set \"Program Flags\" \"-game \$id\"" Contents/Info.plist
-
-Contents/Resources/finalize_wrapper "\$PWD/\$(readlink Game)" && \
-    rm -f finalize Contents/Resources/finalize_* Contents/Resources/makeicns
+Contents/Resources/finalize_wrapper "\$PWD/\$(readlink Game)"
+rm -f finalize Contents/Resources/finalize_* Contents/Resources/makeicns
 END
 chmod +x "$wrapper_path/finalize"
 
