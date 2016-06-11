@@ -101,7 +101,7 @@ retrieve_hltb () {
 }
 
 pretty_hltb_mins () {
-    python -c 'import sys; minutes = int(sys.argv[1]); days, minutes = divmod(minutes, 24*60); hours, minutes = divmod(minutes, 60); print("%dd:%dh:%dm" % (days, hours, minutes))' "$@"
+    python -c 'import sys; minutes = int(sys.argv[1]); hours, minutes = divmod(minutes, 60); print("%dh:%dm" % (hours, minutes))' "$@"
 }
 
 script="$0"
