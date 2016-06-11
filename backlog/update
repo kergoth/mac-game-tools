@@ -1,36 +1,6 @@
 #!/bin/sh
 
-set -e
-
-excluded_games='.*(Setup|Launcher|-64|Editor|Apps|((Original|Pending|Utilities|Wrapper Backup|Obsolete|Replaced|Experimental.*|Archived.*)/))'
-excluded_backlog='.*/By Tag/'
-excluded_tags='Game|Completed|Finished|Unpurchased|Unreleased|Freeware|Free To Play|Limited-beta|Internal Saves|Saved Games in Wrapper$'
-excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
-
-scriptdir="$(dirname "$0")"
-cd "$scriptdir"
-set -- \
-    -x "$excluded_games" \
-    -X "$excluded_backlog" \
-    \
-    -u '5 - Backlog' \
-    -a '.*(Broken|Unplayable)/#7 - Not Playing/Broken, Unplayable' \
-    -a '.*Nostalgia/#7 - Not Playing/Benched - Nostalgia, Old' \
-    -a '.*Benched/#7 - Not Playing/Benched' \
-    -a ".*Won't Play#7 - Not Playing/Benched - Meh, Crap" \
-    -a '.*Kids & Education#7 - Not Playing/Benched - Kids' \
-    -a '.*/OpenEmu Library/#7 - Not Playing/Emulation' \
-    -a '.*Demos#7 - Not Playing/Demos, Unreleased' \
-    -a 'alpha|beta|demo#7 - Not Playing/Demos, Unreleased' \
-    \
-    "/Volumes/My Passport/Games"* \
-    "/Volumes/My Passport/OpenEmu Library" \
-    "/Volumes/Games Archive" \
-    "$@"
-
-./populate_backlog "$@"
-./populate_by_tag -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
-./update-gist
+./update-backlog "$@"
 ./score-games -q [1-6]*
 ./update-scores-gist
 ./howlongtobeat-games -q [12456]*
