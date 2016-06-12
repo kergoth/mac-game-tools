@@ -110,7 +110,7 @@ main () {
     fi
     rm -f "$wrap_out/Game"
     ln -s "$steamapps/common/$installdir" "$wrap_out/Game"
-    "$wrap_out/finalize"
+    "$wrap_out/finalize" || echo >&2 "Finalize failed"
 }
 
 
