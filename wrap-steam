@@ -51,7 +51,9 @@ process_arguments () {
     if [ $# -gt 1 ]; then
         game_name="${2%.app}"
     else
-        game_name="$(vdf-get AppState.name <"$acf_file")"
+        game_name="$(vdf-get AppState.name <"$acf_file" 2>/dev/null)" || \
+            game_name="$(vdf-get AppState.UserConfig.name <"$acf_file")" || \
+            game_name="$(vdf-get AppState.installdir <"$acf_file")" || return 3
     fi
     app_name="$(echo "$game_name" | tr -d :/).app"
 }
