@@ -49,13 +49,14 @@ process_arguments () {
     fi
 
     if [ $# -gt 1 ]; then
-        game_name="${2%.app}"
+        app_name="${2%.app}.app"
+        game_name="$(basename "${2%.app}")"
     else
         game_name="$(vdf-get AppState.name <"$acf_file" 2>/dev/null)" || \
             game_name="$(vdf-get AppState.UserConfig.name <"$acf_file")" || \
             game_name="$(vdf-get AppState.installdir <"$acf_file")" || return 3
+        app_name="$(echo "$game_name" | tr -d :/).app"
     fi
-    app_name="$(echo "$game_name" | tr -d :/).app"
 }
 
 abs_readlink () {
