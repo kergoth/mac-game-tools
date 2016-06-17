@@ -13,6 +13,9 @@ except ImportError:
     import pprint
 
 
+excluded_mount_prefixes = ['/Volumes', '/mnt', '/media', '/run/media']
+excluded_mount_prefixes = [p for p in excluded_mount_prefixes if os.path.exists(p)]
+
 def main(cmdline_args):
     parser = ArgumentParser(description='Update games backlog')
     parser.add_argument('-b', '--backlog-path', metavar='BACKLOG_PATH',
@@ -104,10 +107,19 @@ def main(cmdline_args):
     for to_remove, remove_dest, to_add, add_dest in actions:
         if to_remove:
             _remove_dest = os.readlink(to_remove)
-            if not to_add and _remove_dest.startswith('/Volumes/'):
-                volume = os.sep.join(_remove_dest.split(os.sep, 3)[:3])
-                # Unmounted volume, don't remove
-                if not os.path.exists(volume):
+            if not to_add:
+                for prefix in excluded_mount_prefixes:
+                    if _remove_dest.startswith(prefix + os.sep):
+                        volume_position = prefix.count(os.sep) + 1
+                        volume = os.sep.join(_remove_dest.split(os.sep, volume_position+1)[:volume_position+1])
+                        # Unmounted volume, don't remove
+                        if not os.path.exists(volume):
+                            unmounted = True
+                            break
+                else:
+                    unmounted = False
+
+                if unmounted:
                     continue
 
             p_to_remove = to_remove.replace(args.backlog_path + os.sep, '')
