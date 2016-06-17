@@ -9,12 +9,12 @@ excluded_backlog_dirs_from_tags='.*/7 - Not Playing/'
 
 scriptdir="$(dirname "$0")"
 cd "$scriptdir"
+# -a '.*(Broken|Unplayable)/#7 - Not Playing/Broken, Unplayable'
 set -- \
     -x "$excluded_games" \
     -X "$excluded_backlog" \
     \
     -u '5 - Backlog' \
-    -a '.*(Broken|Unplayable)/#7 - Not Playing/Broken, Unplayable' \
     -a '.*Nostalgia/#7 - Not Playing/Benched - Nostalgia, Old' \
     -a '.*Benched/#7 - Not Playing/Benched' \
     -a ".*Won't Play#7 - Not Playing/Benched - Meh, Crap" \
