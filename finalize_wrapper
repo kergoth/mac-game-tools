@@ -45,7 +45,7 @@ find "$installdest/" -name \*.ico | while read ico; do
     cp "$ico" "$app/Icons"
 done
 
-find "$installdest/" -name \*.exe -print0 | \
+find "$installdest/" -iname \*.exe -print0 | \
     xargs -0 wrestool -x -t14 -o "$app/Icons" 2>/dev/null || true
 
 rmdir "$app/Icons" 2>/dev/null || true
