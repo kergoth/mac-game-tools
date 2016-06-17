@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -uo pipefail
+
+if [ $# -eq 0 ]; then
+    set -- [12456]* "7 - Not Playing/Broken, Unplayable"
+fi
+
+tmp="$(mktemp "${0##*/}.XXXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+
+toml_del () {
+    local f="$1"
+    shift
+    toml-del "$@" <"$f" >"$tmp" 2>/dev/null && mv "$tmp" "$f"
+}
+
+mkdir -p _metadata
+find "$@" -iname \*.app -prune | while read -r game; do
+    base="$(basename "$game" | sed 's,\.app$,,')"
+    # search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
+    toml="_metadata/$base.toml"
+    touch "$toml"
+
+    title="$(toml-get howlongtobeat.title <"$toml" 2>/dev/null)"
+    time="$(toml-get howlongtobeat.time.main_story <"$toml" 2>/dev/null)"
+    if [ -z "$time" ] || [ "$time" = "0" ]; then
+        url="$(toml-get howlongtobeat.url <"$toml" 2>/dev/null)"
+        printf '%s\t%s\t%s\n' "$base" "${title:-##invalid##}" "$url"
+    fi
+done | sort -f | column -t -s "$(printf '\t')"

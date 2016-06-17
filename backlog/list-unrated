@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -uo pipefail
+
+if [ $# -eq 0 ]; then
+    set -- [12456]* "7 - Not Playing/Broken, Unplayable"
+fi
+
+tmp="$(mktemp "${0##*/}.XXXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+
+toml_del () {
+    local f="$1"
+    shift
+    toml-del "$@" <"$f" >"$tmp" 2>/dev/null && mv "$tmp" "$f"
+}
+
+mkdir -p _metadata
+find "$@" -iname \*.app -prune | while read -r game; do
+    base="$(basename "$game" | sed 's,\.app$,,')"
+    # search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
+    toml="_metadata/$base.toml"
+    touch "$toml"
+
+    metacritic_score="$(toml-get metacritic.score <"$toml" 2>/dev/null)"
+    metacritic_user_score="$(toml-get metacritic.user_score <"$toml" 2>/dev/null)"
+    imdb_rating="$(toml-get imdb.rating <"$toml" 2>/dev/null)"
+
+    if [ -z "$metacritic_score" ] || [ "$metacritic_score" = "0" ]; then
+        if [ -z "$metacritic_user_score" ] || [ "$metacritic_user_score" = "0.0" ]; then
+            if [ -z "$imdb_rating" ] || [ "$imdb_rating" = "0" ] || [ "$imdb_rating" = "0.0" ]; then
+                metacritic_game="$(toml-get metacritic.game <"$toml" 2>/dev/null)"
+                imdb_title="$(toml-get imdb.title <"$toml" 2>/dev/null)"
+                printf '%s\t%s\t%s\n' "$base" "$metacritic_game" "$imdb_title"
+            fi
+        fi
+    fi
+done | sort -f | column -t -s "$(printf '\t')"
