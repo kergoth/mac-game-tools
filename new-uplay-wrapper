@@ -1,0 +1,103 @@
+#!/bin/sh
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+locate_app () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
+usage () {
+    echo >&2 "Usage: ${0##*/} [-t TEMPLATE_PATH] WRAPPER_PATH [WRAPPER_NAME]"
+    exit 2
+}
+
+process_arguments () {
+    template=
+
+    while getopts t:h opt; do
+        case "$opt" in
+            t)
+                template="$OPTARG"
+                if [ ! -e "$template" ]; then
+                    echo >&2 "Error: template path '$template' does not exist"
+                    usage
+                fi
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    wrapper_path="$1"
+    if [ -e "$wrapper_path" ]; then
+        echo >&2 "Error: $wrapper_path already exists"
+        exit 1
+    fi
+
+    if [ $# -eq 2 ]; then
+        wrapper_name="$2"
+    else
+        wrapper_name="$(basename "$wrapper_path" | sed -e "s/\.app$//")"
+    fi
+}
+
+
+set -e
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir:$PATH"
+
+process_arguments "$@"
+
+if [ -z "$template" ]; then
+    template="$HOME/Applications/Saved/Game Wrapper Tools/Uplay.app"
+    # template="$(locate_app_by_id "Steam Template542582350Wine.wineskin.prefs" | head -n 1)"
+    # template="$(locate_app "Steam Template.app" | grep -v Backup | head -n 1)"
+    # template="$(locate_app_by_id "org.kergoth.gog.Steam Template" | head -n 1)"
+    if [ -z "$template" ]; then
+        # template="$(locate_app_by_id "Steam Template.Wineskin.prefs" | head -n 1)"
+        # if [ -z "$template" ]; then
+            echo >&2 "Error: unable to locate 'Uplay.app'"
+            exit 2
+        # fi
+    fi
+fi
+echo >&2 "Template: $template"
+cp -a "$template" "$wrapper_path"
+app_set_metadata -n "$wrapper_name" -d "$wrapper_name" -v Uplay -s Uplay -i "org.kergoth.glyph.$(printf "%s" "$wrapper_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')" "$wrapper_path"
+rm -f "$wrapper_path/Games"
+mv "$wrapper_path/Client" "$wrapper_path/Uplay"
+
+cp -a "$(which finalize_wrapper)" "$(which makeicns)" "$wrapper_path/Contents/Resources/"
+
+cat >"$wrapper_path/finalize" <<END
+#!/bin/sh
+set -e
+
+cd "\$(dirname "\$0")"
+
+rm -f Game
+ln -s "\$(readlink Uplay)"/games/* Game
+gamedir="\$(readlink Game)"
+exepath="\$(find "\$gamedir/" -iname \*.exe | head -n 1)"
+exepath="\${exepath#\$gamedir/}"
+wine_gamedir="/\${gamedir#drive_c/}"
+/usr/libexec/PlistBuddy -c "Set \"Program Name and Path\" \"\$wine_gamedir/\$exepath\"" Contents/Info.plist
+/usr/libexec/PlistBuddy -c "Set \"Program Flags\" \"\"" Contents/Info.plist
+Contents/Resources/finalize_wrapper "\$PWD/\$(readlink Game)"
+rm -f finalize Contents/Resources/finalize_* Contents/Resources/makeicns
+END
+chmod +x "$wrapper_path/finalize"
+
+if which tag >/dev/null 2>&1; then
+    tag -a Game "$wrapper_path"
+fi
