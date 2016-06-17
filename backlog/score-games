@@ -13,15 +13,14 @@ get_metacritic_scores () {
     local mc_game
     mc_game="$(toml-get metacritic.game <"$toml" 2>/dev/null)"
     if [ $? -ne 0 ]; then
-        mc_game="$(echo "$search_query" | tr "[:upper:] " "[:lower:]-")"
-        if ! http --check-status --ignore-stdin -h "$base_url/$mc_game" >/dev/null 2>&1; then
+        platform="$(toml-get metacritic.platform <"$toml" 2>/dev/null)"
+        if ! http --check-status --ignore-stdin -h "$base_url/${platform:-pc}/$mc_game" >/dev/null 2>&1; then
             local mc_url
             mc_url="$(critic_search "$search_query" | head -n 1)" || return 1
-            if [ -z "$mc_url" ]; then
-                # No search results found
-                mc_game="##invalid##"
-            else
+            if [ -n "$mc_url" ]; then
                 mc_game="${mc_url#$base_url/}"
+                mc_platform="${mc_game%%/*}"
+                mc_game="${mc_game#*/}"
                 if [ "$mc_game" = "$mc_url" ]; then
                     echo >&2 "Error: unrecognized metacritic url $mc_url for $mc_game"
                     exit 1
@@ -37,8 +36,9 @@ get_metacritic_scores () {
     user_score="$(toml-get metacritic.user_score <"$toml" 2>/dev/null)"
     if [ -z "$score" ] || [ -z "$user_score" ]; then
         write=1
-        local scores
-        scores="$(critic_scores "$base_url/$mc_game")"
+        local scores platform
+        platform="$(toml-get metacritic.platform <"$toml" 2>/dev/null)"
+        scores="$(critic_scores "$base_url/${platform:-pc}/$mc_game")"
         if [ -z "$scores" ]; then
             score="0"
             user_score="0.0"
@@ -60,6 +60,7 @@ get_metacritic_scores () {
         fi
         cat "$toml" | \
             toml-set-string metacritic.game "$mc_game" | \
+            toml-set-string metacritic.platform "${mc_platform:-pc}" | \
             toml-set metacritic.score "$score" metacritic.user_score "$user_score" >"$toml.new" && \
             mv "$toml.new" "$toml"
     fi
@@ -90,7 +91,7 @@ get_imdb_rating () {
             rating=0
         fi
     else
-        game="$(toml-get imdb.game <"$toml")"
+        game="$(toml-get imdb.game <"$toml" 2>/dev/null)" || return 1
     fi
 
     if [ $write -eq 1 ]; then
@@ -136,7 +137,7 @@ done
 shift $((OPTIND - 1))
 
 
-base_url=http://www.metacritic.com/game/pc
+base_url=http://www.metacritic.com/game
 
 mkdir -p _metadata
 find "$@" -iname \*.app -prune | while read -r game; do
@@ -156,9 +157,9 @@ find "$@" -iname \*.app -prune | while read -r game; do
         scores="$scores	$(echo "$results" | cut -d"	" -f3-)"
     fi
 
-    if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
+    if [ "${quiet:-0}" -eq 0 ] || [ "${write:-0}" -eq 1 ]; then
         printf "%s\t%s\t%s\n" "$game" "$lookup_game" "$scores"
-        if [ "$write" -eq 1 ]; then
+        if [ "${write:-0}" -eq 1 ]; then
             sleep 2
         fi
     fi
