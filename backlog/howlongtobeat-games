@@ -57,15 +57,14 @@ retrieve_hltb () {
     hltb_title="$(toml-get howlongtobeat.title <"$toml" 2>/dev/null)"
     if [ -z "$hltb" ] || [ -z "$hltb_title" ]; then
         hltb_url="$(toml-get howlongtobeat.url <"$toml" 2>/dev/null)"
-        if [ $? -ne 0 ]; then
+        if [ $? -ne 0 ] || [ -z "$hltb_url" ]; then
             hltb_url="$(hltb_search "$search_query" | head -n 1)"
-            if [ -z "$hltb_url" ]; then
-                hltb_id=0
-                hltb_title="##invalid##"
-                hltb=0s
-            fi
         fi
-        if [ -n "$hltb_url" ]; then
+        if [ -z "$hltb_url" ]; then
+            hltb_id=0
+            hltb_title="##invalid##"
+            hltb=0s
+        else
             hltb_info="$(howlongtobeat "$hltb_url" | tr '\n' '|')"
             if [ -z "$hltb_info" ]; then
                 hltb_id=0
