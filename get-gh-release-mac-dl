@@ -1,0 +1,33 @@
+#!/bin/sh
+
+ghrepo="$1"
+
+release="$(curl -sL "https://github.com/$ghrepo/releases.atom" | xml2 | sed -n -e 's,/feed/entry/link/@href=,https://github.com,p' | head -n 1)"
+if [ -z "$release" ]; then
+    echo >&2 "Error getting release link from https://$ghrepo/releases.atom"
+    exit 3
+fi
+tag="$(basename "$release")"
+if [ -z "$tag" ]; then
+    echo >&2 "Error getting tag/release name from release link $release"
+    exit 4
+fi
+
+tmp="$(mktemp -t "${0##*/}.XXXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+curl -sL "$release" | pup 'a attr{href}' | grep "/$ghrepo/releases/download/$tag/" >"$tmp"
+
+for ext in dmg pkg zip; do
+    download_link="$(grep ".$ext" "$tmp" | head -n 1)"
+    if [ -n "$download_link" ]; then
+        break
+    fi
+done
+
+if [ -z "$download_link" ]; then
+    echo >&2 "Error selecting download link to use from the available links:"
+    cat "$tmp" | sed "s,^,    ," >&2
+    exit 2
+fi
+
+curl -JLO "https://github.com$download_link"
