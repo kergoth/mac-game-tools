@@ -42,7 +42,7 @@ if [ -e "$app_name" ]; then
 fi
 echo >&2 "Creating $app_name"
 
-tmp="$(mktemp -d "${0##*/}.XXXXXX")"
+tmp="$(mktemp -d "$app_name.XXXXXX")" || exit 1
 rmdir "$tmp"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
