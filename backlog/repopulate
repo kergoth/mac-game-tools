@@ -1,0 +1,53 @@
+#!/bin/bash
+
+locate_app () {
+	mdfind -onlyin /Volumes "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
+set -euo pipefail
+
+curl -sL https://gist.githubusercontent.com/kergoth/4a96c92d64948d52a468/raw/d2f4fb29d4be307dc3b3d3c1fc40a309db79256e/games-backlog.txt | \
+    while IFS=$'\n' read -r line; do
+        case "$line" in
+            " "*/)
+                line="$(echo "$line" | sed "s,^  *,,g")"
+                subdir="${subdir%/*}/${line%/}"
+                ;;
+            */)
+                line="$(echo "$line" | sed "s,^  *,,g")"
+                subdir="${line%/}"
+                ;;
+            *)
+                game="$(echo "$line" | sed "s,^  *,,g").app"
+                game_base="$game"
+                game="$subdir/$game"
+                gamepath="$(find [0-9]* -iname "$game_base" | head -n 1)"
+                if [ -n "$gamepath" ]; then
+                    mkdir -p "$subdir"
+                    if [ "${gamepath#./}" != "$game" ]; then
+                        mv -v "$gamepath" "$game"
+                    fi
+                else
+                    gamepath="$(locate_app "${game_base%.app}")"
+                    if [ -n "$gamepath" ]; then
+                        mkdir -p "$subdir"
+                        ln -sv "$gamepath" "$game"
+                    else
+                        gamepath="$(find /Volumes/My\ Passport*/Games* -maxdepth 3 -iname "$game_base" -prune)"
+                        if [ -n "$gamepath" ]; then
+                            mkdir -p "$subdir"
+                            ln -sv "$gamepath" "$game"
+                        else
+                            gamepath="$(find /Volumes/Games\ Archive/Games* -maxdepth 3 -iname "$game_base" -prune)"
+                            if [ -n "$gamepath" ]; then
+                                mkdir -p "$subdir"
+                                ln -sv "$gamepath" "$game"
+                            else
+                                echo >&2 "Error: unable to locate $game_base"
+                            fi
+                        fi
+                    fi
+                fi
+                ;;
+        esac
+    done
