@@ -78,7 +78,8 @@ rm "$wrapper_path/Games"
 
 cp "$scriptdir/finalize_gog" "$wrapper_path/Contents/Resources/"
 cp "$scriptdir/finalize_galaxy" "$wrapper_path/Contents/Resources/"
-cp "$scriptdir/get-gamedir" "$wrapper_path/Contents/Resources/" cat >"$wrapper_path/finalize_gog" <<END
+cp "$scriptdir/get-gamedir" "$wrapper_path/Contents/Resources/"
+cat >"$wrapper_path/finalize_gog" <<END
 #!/bin/sh
 cd "\$(dirname "\$0")"
 Contents/Resources/finalize_gog . && rm -f finalize_gog Contents/Resources/finalize_gog
