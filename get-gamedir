@@ -26,7 +26,7 @@ get_gamedir () {
         if [ -e "$(abs_readlink "$game/Game")" ]; then
             gamedir="$(readlink "$game/Game")"
         else
-            echo >&2 "Warning: 'Game' symlink is dead"
+            echo >&2 "Warning: 'Game' symlink to '$(abs_readlink "$game/Game")' is dead"
         fi
     fi
 
@@ -95,6 +95,7 @@ get_gamedir () {
                 printf >&2 "Error extracting path for '%s'\n" "$game"
                 return 1
             }
+            gameexe="${gameexe#/}"
             gamedir="${gameexe%/*}"
             local drive
             if [ -e "$game/drive_c" ]; then
@@ -156,14 +157,14 @@ if [ -n "$gamedir_prefix" ]; then
 fi
 
 case "$gamedir" in
-    */Program\ Files/Steam)
+    */Program\ Files/Steam*)
         gamedir="$(cd "$game" && find "$gamedir/SteamApps/common" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
         ;;
     */Program\ Files/GalaxyClient)
         drive="$(dirname "$(dirname "$gamedir")")"
         gamedir=
         for gamesdir in "GOG Games" "Program Files/GOG.com"; do
-            if [ -d "$gamesdir" ]; then
+            if [ -d "$game/$drive/$gamesdir" ]; then
                 gamedir="$(cd "$game" && find "$drive/$gamesdir" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
                 if [ -n "$gamedir" ]; then
                     break
