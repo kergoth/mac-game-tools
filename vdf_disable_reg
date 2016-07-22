@@ -23,6 +23,9 @@ for fn in sys.argv[1:]:
         data = vdf.load(f)
 
     runp = get_val_nocase('installscript.run process', data)
+    if not runp:
+        continue
+
     for name, runpinfo in runp.items():
         os = get_val_nocase('requirement_os.ostype', runpinfo)
         key = get_val_nocase('hasrunkey', runpinfo)
