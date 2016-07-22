@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -eu
+
 ./update-backlog "$@"
 ./update-gist
 ./score-games -q [1-6]* "7 - Not Playing/Broken, Unplayable"
