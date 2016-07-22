@@ -7,7 +7,7 @@ fi
 game="$1"
 norunkeyfile="$(mktemp -t "${0##*/}.XXXXXX")"
 trap 'rm -f "$norunkeyfile"' EXIT INT TERM
-find "$game/$(readlink "$game/Game")/." -name \*.vdf | nlxargs vdf_disable_reg 2>"$norunkeyfile" >"$game/disable_redist.reg"
+find "$game/$(readlink "$game/Game")/." -iname \*.vdf | nlxargs vdf_disable_reg 2>"$norunkeyfile" >"$game/disable_redist.reg"
 sed -n -e 's/^Warning: no run key for .*: %INSTALLDIR%\\\\//p' "$norunkeyfile" | while read path; do
     path="$game/Game/$(printf "%s" "$path" | sed 's#\\#/#g')"
     if [ -e "$path" ] && [ ! -e "$path.orig" ]; then
