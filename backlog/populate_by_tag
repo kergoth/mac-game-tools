@@ -47,6 +47,9 @@ def main(cmdline_args):
     links = find_apps(args.backlog_path)
     links = filter(lambda l: not l.startswith(args.tag_tree_path + os.sep), links)
     links = filter(lambda l: os.path.exists(l), links)
+    if not links:
+        return 0
+
     tag_output = subprocess.check_output(['tag', '-l'] + links)
     for tag_line in tag_output.splitlines():
         tag_line = tag_line.rstrip()
@@ -155,7 +158,7 @@ def find_dirs(dir, **walkoptions):
 def get_games_by_name(game_paths):
     games_by_name = {}
     game_paths = list(game_paths)
-    if game_paths:
+    if game_paths and any(os.path.exists(p) for p in game_paths):
         try:
             game_names_txt = subprocess.check_output(["mdls", "-name", "kMDItemDisplayName", "-raw"] + game_paths, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as exc:
