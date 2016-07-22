@@ -41,7 +41,7 @@ ls -1 "$installdest"/ | \
 rmdir "$app/Extras" 2>/dev/null || true
 
 mkdir -p "$app/Icons"
-find "$installdest/" -name \*.ico | while read ico; do
+find "$installdest/" -iname \*.ico | while read ico; do
     cp "$ico" "$app/Icons"
 done
 
