@@ -30,4 +30,3 @@ set -- \
 
 ./populate_backlog "$@"
 ./populate_by_tag -x "$excluded_tags" -X "$excluded_backlog_dirs_from_tags"
-./update-gist
