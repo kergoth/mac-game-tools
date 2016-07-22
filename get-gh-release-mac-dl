@@ -17,8 +17,15 @@ tmp="$(mktemp -t "${0##*/}.XXXXXX")" || exit 1
 trap 'rm -f "$tmp"' EXIT INT TERM
 curl -sL "$release" | pup 'a attr{href}' | grep "/$ghrepo/releases/download/$tag/" >"$tmp"
 
-for ext in dmg pkg zip; do
-    download_link="$(grep ".$ext" "$tmp" | head -n 1)"
+pattern="${2:-}"
+if [ -n "$pattern" ]; then
+    set -- "$pattern"
+else
+    set -- .dmg\$ .pkg\$ .zip\$
+fi
+
+for pattern; do
+    download_link="$(grep "$pattern" "$tmp" | head -n 1)"
     if [ -n "$download_link" ]; then
         break
     fi
@@ -30,4 +37,5 @@ if [ -z "$download_link" ]; then
     exit 2
 fi
 
+echo >&2 "Downloading https://github.com$download_link"
 curl -JLO "https://github.com$download_link"
