@@ -108,6 +108,10 @@ def main(cmdline_args):
         if to_remove:
             _remove_dest = os.readlink(to_remove)
             if not to_add:
+                if _remove_dest == '/dev/null':
+                    # Special-cased handling of game placeholder links
+                    continue
+
                 for prefix in excluded_mount_prefixes:
                     if _remove_dest.startswith(prefix + os.sep):
                         volume_position = prefix.count(os.sep) + 1
