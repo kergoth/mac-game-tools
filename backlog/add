@@ -1,0 +1,21 @@
+#!/bin/sh
+
+default="5 - Backlog"
+
+arg="${*%.app}.app"
+if [ -d "$arg" ] && [ ! -h "$arg" ]; then
+    # Assuming arg is source, not dest
+    source="$arg"
+    dest="$default"
+else
+    dest="$(dirname "$arg")"
+    if [ "$dest" = "." ]; then
+        dest="$default"
+    fi
+    source=/dev/null
+fi
+destfn="$(basename "$arg")"
+rm -vf "$dest/$destfn"
+ln -vs "$source" "$dest/$destfn"
+./score-games "$dest/$destfn"
+./howlongtobeat-games "$dest/$destfn"
