@@ -8,10 +8,8 @@ fi
 extractpathicon () {
     if [ -d "$1" ]; then
         if [ -e "$1"/$'Icon\r' ]; then
-            ls -l "$1"/$'Icon\r'
             # Decompile the resource fork of the folder into $2
             DeRez -only icns "$1"/$'Icon\r' >"$2"
-            ls -l "$2"
         elif [ -e "$1/Contents/Info.plist" ]; then
             iconfile="$1/Contents/Resources/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$1/Contents/Info.plist")"
             if [ -z "$iconfile" ]; then
