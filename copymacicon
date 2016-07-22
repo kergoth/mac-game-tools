@@ -36,10 +36,10 @@ copyicon () {
     from="$1"
     to="$2"
 
-    extractpathicon "$from" "$to/wrapicon"
+    extractpathicon "$from" "$to.icon"
 
     if [ $? -ne 0 ]; then
-        rm -f "$to/wrapicon"
+        rm -f "$to.icon"
         return 1
     fi
 
@@ -47,7 +47,7 @@ copyicon () {
     if [ -e "$to/Contents/Info.plist" ]; then
         toiconfile="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$to/Contents/Info.plist" 2>/dev/null)"
         if [ -n "$toiconfile" ]; then
-            mv "$to/wrapicon" "$to/Contents/Resources/$toiconfile"
+            mv "$to.icon" "$to/Contents/Resources/$toiconfile"
             sips -i "$to/Contents/Resources/$toiconfile" >/dev/null
             return 0
         fi
