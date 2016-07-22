@@ -1,7 +1,13 @@
-## Games Backlog Tasks
+- Consider new sources of ratings
+  - Gamespot
+  - IGN
+- For HowLongToBeat, pull more than just 'Main Story', to handle cases like id
+  7236, which has info for 'Main + Extras' and 'Completionist', but not the
+  'Main Story'
+- For imdb, revamp the script to function like the rest, where you can
+  manually set the title id and let it grab the rating
 
-- If an auto categorization rule would have applied to place it where it is,
-  given the old dest, but no longer would be, then move it out of that
-  category into the default location (unsorted). That is, when a game is in
-  'Games - Broken' and gets moved into 'Games', it should be removed from '7
-  - Not Playing/Broken, Unplayable'.
+## Wrappers
+
+- Delete Planetside 2. The MMOFPS is now dead.
+- Finish fixing SotS
