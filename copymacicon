@@ -43,6 +43,11 @@ copyicon () {
         return 1
     fi
 
+    if [ ! -e "$to" ]; then
+        mv "$to.icon" "$to"
+        return $?
+    fi
+
     # App bundle with an existing icon file, overwrite it
     if [ -e "$to/Contents/Info.plist" ]; then
         toiconfile="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$to/Contents/Info.plist" 2>/dev/null)"
