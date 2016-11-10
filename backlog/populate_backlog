@@ -212,6 +212,9 @@ def get_games_by_name(game_paths):
             return
 
         game_names = game_names_txt.split('\0')
+        if len(game_names) != len(game_paths):
+            sys.exit("Error: number of entries returned by `mdls -name` didn't match the input")
+
         for pos, game_path in enumerate(game_paths):
             name = game_names[pos]
             if name and name != '(null)':
