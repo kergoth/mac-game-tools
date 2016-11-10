@@ -1,0 +1,44 @@
+#!/bin/bash
+
+walk_up () {
+    local walk_path="$(abspath "${1:-$PWD}")"
+    while [ -n "$walk_path" ]; do
+        echo "$walk_path"
+        walk_path="${walk_path%/*}"
+    done
+}
+
+gamedir_root () {
+    result="$1"
+    walk_up "$result" | while read -r path; do
+        # if [ $(ls -1 "$path" | wc -l) = "1" ]; then
+        #     echo "$result"
+        #     return
+        # fi
+        case "$path" in
+            */Program\ Files/Steam/*)
+                echo "${path%%/Program Files/Steam/*}/Program Files/Steam"
+                return
+                ;;
+            */Program\ Files)
+                echo "$result"
+                return
+                ;;
+            */GOG\ Games)
+                echo "$result"
+                return
+                ;;
+            */drive_[c-z])
+                echo "$result"
+                return
+                ;;
+            */[c-z]_drive)
+                echo "$result"
+                return
+                ;;
+        esac
+        result="$path"
+    done
+}
+
+gamedir_root "$1/$(get-gamedir "$1")"
