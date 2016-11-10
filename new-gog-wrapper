@@ -4,6 +4,10 @@ locate_app_by_id () {
     mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
 }
 
+locate_app () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
 usage () {
     echo >&2 "Usage: ${0##*/} [-t TEMPLATE_PATH] WRAPPER_PATH [WRAPPER_NAME]"
     exit 2
@@ -59,13 +63,16 @@ PATH="$scriptdir:$PATH"
 process_arguments "$@"
 
 if [ -z "$template" ]; then
-    template="$(locate_app_by_id "org.kergoth.gog.GOG Galaxy for Windows" | head -n 1)"
+    template="$HOME/Applications/Saved/Game Wrapper Tools/GOG Galaxy for Windows.app"
+    # template="$(locate_app_by_id "GOG Galaxy for Windows542582350Wine.wineskin.prefs" | head -n 1)"
+    # template="$(locate_app "GOG Galaxy for Windows.app" | grep -v Backup | head -n 1)"
+    # template="$(locate_app_by_id "org.kergoth.gog.GOG Galaxy for Windows" | head -n 1)"
     if [ -z "$template" ]; then
-        template="$(locate_app_by_id "GOG Galaxy for Windows.Wineskin.prefs" | head -n 1)"
-        if [ -z "$template" ]; then
+        # template="$(locate_app_by_id "GOG Galaxy for Windows.Wineskin.prefs" | head -n 1)"
+        # if [ -z "$template" ]; then
             echo >&2 "Error: unable to locate 'GOG Galaxy for Windows.app'"
             exit 2
-        fi
+        # fi
     fi
 fi
 echo >&2 "Template: $template"

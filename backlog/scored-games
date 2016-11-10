@@ -4,7 +4,7 @@ if [ $# -eq 0 ]; then
     set -- [12456]* "7 - Not Playing/Broken, Unplayable"
 fi
 
-./score-games "$@" | \
+"$(dirname "$0")/score-games" "$@" | \
     while IFS="	" read game lookup_game scores; do
         sort_field="$(echo "$scores" | perl -ne 's/\.//g; s/00/0/g; while(s/^0	//){}; print($_);')"
         printf '%s\t%s|%s\n' "$game" "$scores" "$sort_field"

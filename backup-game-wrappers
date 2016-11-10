@@ -96,6 +96,11 @@ backupdate="$(date -u '+%Y-%m-%dT%H%M%SZ')"
 #         # rsync_cmd -r --delete --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$gamedir/" "$game_destdir/"
 #     done
 # done
+locate_app () {
+	mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemDisplayName == '${*%.app}'cd"
+}
+
+ccc="$(locate_app "Carbon Copy Cloner")"
 for gamedir in /Volumes/My\ Passport/Games*/; do
     gamedir="${gamedir%/}"
     relpath="${gamedir#/Volumes/My Passport/}"

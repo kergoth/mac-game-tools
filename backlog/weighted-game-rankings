@@ -45,7 +45,7 @@ else
     }
 fi
 
-./score-games "$@" | \
+"$(dirname "$0")/score-games" "$@" | \
     while IFS="	" read -r game _ scores; do
         sort_field="$(echo "$scores" | perl -ne 's/\.//g; s/00/0/g; while(s/^0	//){}; print($_);')"
         score="0.$(echo "$sort_field" | tr -d '	')"

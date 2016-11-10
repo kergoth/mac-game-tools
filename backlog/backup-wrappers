@@ -73,9 +73,12 @@ locate_app () {
 
 # ccc="$(locate_app "Carbon Copy Cloner")"
 for game in $(find "$@" -type l -print0 | xargs -0 abs_readlink); do
+    if [ "${game##*.}" != "app" ]; then
+        continue
+    fi
     type="$(identify-game-wrapper -q "$game")" || continue
     case "$type" in
-        windows*)
+        *windows*)
             ;;
         *)
             continue
@@ -83,6 +86,36 @@ for game in $(find "$@" -type l -print0 | xargs -0 abs_readlink); do
     esac
 
     echo >&2 "Game: $game"
+
+    rel_game="$(echo "$game" | sed "s,^/Volumes/[^/]*/,,")"
+    game_dest="$destdir/$rel_game"
+    if [ -L "$game" ]; then
+        if [ -L "$game_dest" ]; then
+            rm -f "$game_dest"
+            cp -a "$game" "$game_dest"
+        elif [ -e "$game_dest" ]; then
+            echo >&2 "Error: $game is a link, but $game_dest is not, skipping"
+            continue
+        fi
+        continue
+    fi
+
+    src_vol="$(echo "$game" | sed "s,^\(/Volumes/[^/]*\)/.*,\1,")"
+    dst_vol="$(echo "$game_dest" | sed "s,^\(/Volumes/[^/]*\)/.*,\1,")"
+    if [ "$src_vol" = "$dst_vol" ]; then
+        echo >&2 "$game is already on the destination volume, skipping"
+        if [ -e "$game_dest" ]; then
+            echo >&2 "Removing $game_dest"
+            trash -a "$game_dest" || rm -rf "$game_dest"
+        fi
+        continue
+    fi
+
+    # if [ -e "$game_dest" ]; then
+    #     # echo >&2 "$game_dest exists, skipping"
+    #     continue
+    # fi
+
     game_dir="$game/$(get-gamedir "$game")" || continue
     if [ -e "$game_dir" ]; then
         game_dir="$(cd "$game_dir" && pwd -P)"
@@ -99,15 +132,14 @@ for game in $(find "$@" -type l -print0 | xargs -0 abs_readlink); do
         >"$exclude"
     fi
 
-    rel_game="$(echo "$game" | sed "s,^/Volumes/[^/]*/,,")"
-    game_destdir="$destdir/$rel_game"
-    echo >&2 "Game dest: $game_destdir"
-    mkdir -p "$game_destdir"
+    echo >&2 "Game dest: $game_dest"
+    mkdir -p "$game_dest"
 
     echo . >"$include"
-    rsync_cmd -r --delete --delete-excluded --files-from="$include" --exclude-from="$exclude" "$game/" "$game_destdir/"
-    # "$ccc/Contents/MacOS/rsync" --progress --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate/$rel_game" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$game/" "$game_destdir/" 2>/dev/null | grep -v DEBUG
-    if [ -d "$game_destdir/${game_dir#*.app/}" ]; then
+    rsync_cmd -r --delete --delete-excluded --files-from="$include" --exclude-from="$exclude" "$game/" "$game_dest/"
+    # "$ccc/Contents/MacOS/rsync" --progress --exclude .DocumentRevisions-V100 --exclude .Spotlight-V100 --exclude .Trashes -A -X -H --devices -p --fileflags --force-change -l -N -rtx --protect-decmpfs --numeric-ids -go --delete-during --backup --backup-dir="$destdir/_SafetyNet/$backupdate/$rel_game" --protect-args --delete-excluded --files-from="${include}.new" --exclude-from="${exclude}.new" "$game/" "$game_dest/" 2>/dev/null | grep -v DEBUG
+
+    if [ -e "$game_dir" ] && [ -d "$game_dest/${game_dir#*.app/}" ]; then
         printf >&2 'Error: game dir for "%s" exists after rsync, aborting\n' "$game"
         exit 1
     fi
