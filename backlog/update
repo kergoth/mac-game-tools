@@ -2,9 +2,6 @@
 
 set -eu
 
-./update-backlog "$@"
-./update-gist
 ./score-games -q [1-6]* "7 - Not Playing/Broken, Unplayable"
-./update-scores-gist
 ./howlongtobeat-games -q [12456]* "7 - Not Playing/Broken, Unplayable"
-./update-rankings-gist [12456]* "7 - Not Playing/Broken, Unplayable"
+./update-gists

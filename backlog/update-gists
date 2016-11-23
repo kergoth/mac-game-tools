@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -eu
+
+./update-gist
+./update-scores-gist
+./update-rankings-gist [12456]* "7 - Not Playing/Broken, Unplayable"
