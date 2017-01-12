@@ -10,9 +10,9 @@ htmldecode () {
 howlongtobeat_id () {
     local hltb_gameid hltb_title
     hltb_gameid="$1"
-    hltb_title="$(http --check-status --ignore-stdin http://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.profile_header text{}' | sed '/^ *$/d; s/^ *//; s/ $//g;')"
+    hltb_title="$(http --check-status --ignore-stdin https://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.profile_header text{}' | sed '/^ *$/d; s/^ *//; s/ $//g;')"
     htmldecode "$hltb_title"
-    http --check-status --ignore-stdin http://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.game_main_table tbody.spreadsheet:first-of-type json{}' | jq -r '.[].children | select(.[].children[].text == "Main Story") | .[].children[2].text'
+    http --check-status --ignore-stdin https://howlongtobeat.com/game.php id=="$hltb_gameid" | pup '.game_main_table tbody.spreadsheet:first-of-type json{}' | jq -r '.[].children | select(.[].children[].text == "Main Story") | .[].children[2].text'
 }
 
 ddg () {
@@ -20,7 +20,7 @@ ddg () {
 }
 
 ddg_search () {
-    ddg site:http://howlongtobeat.com/game.php "$*"
+    ddg site:https://howlongtobeat.com/game.php "$*"
 }
 
 goog () {
@@ -29,7 +29,7 @@ goog () {
 }
 
 goog_search () {
-    goog site:http://howlongtobeat.com/game.php "$*"
+    goog site:https://howlongtobeat.com/game.php "$*"
 }
 
 howlongtobeat () {
@@ -41,9 +41,9 @@ howlongtobeat () {
 
 hltb_search () {
     local rel_link
-    rel_link="$(http --check-status --ignore-stdin -f POST http://howlongtobeat.com/search_main.php queryString="$*" plat=PC | pup 'a attr{href}')" || return $?
+    rel_link="$(http --check-status --ignore-stdin -f POST https://howlongtobeat.com/search_main.php queryString="$*" plat=PC | pup 'a attr{href}')" || return $?
     if [ -n "$rel_link" ]; then
-        printf "http://howlongtobeat.com/%s\n" "$rel_link"
+        printf "https://howlongtobeat.com/%s\n" "$rel_link"
     fi
 }
 
