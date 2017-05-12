@@ -63,7 +63,8 @@ PATH="$scriptdir:$PATH"
 process_arguments "$@"
 
 if [ -z "$template" ]; then
-    template="$HOME/Applications/Saved/Game Wrapper Tools/GOG Galaxy for Windows.app"
+    template="/Volumes/Mac Archive/Game Wrapper Tools/GOG Galaxy for Windows.app"
+    # template="$HOME/Applications/Saved/Game Wrapper Tools/GOG Galaxy for Windows.app"
     # template="$(locate_app_by_id "GOG Galaxy for Windows542582350Wine.wineskin.prefs" | head -n 1)"
     # template="$(locate_app "GOG Galaxy for Windows.app" | grep -v Backup | head -n 1)"
     # template="$(locate_app_by_id "org.kergoth.gog.GOG Galaxy for Windows" | head -n 1)"

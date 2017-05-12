@@ -85,23 +85,34 @@ get_scummvm_game_id () {
     _directory="$2"
 
     if echo "$_game" | grep -q "Incredible Machine" || \
-       [ "$_game" = "King's Quest 7 - The Princeless Bride" ] || \
        [ "$_game" = "Police Quest - SWAT" ] || \
        [ "$_game" = "Quest for Glory 4 - Shadows of Darkness" ] || \
-       [ "$_game" = "Roberta Williams' Phantasmagoria" ] || \
-       [ "$_game" = "Space Quest 6 - Roger Wilco in the Spinal Frontier" ] || \
        [ "$_game" = "Betrayal at Krondor" ] || \
-       [ "$_game" = "Gabriel Knight - Sins of the Fathers" ] || \
-       [ -n "$(find "$_directory"/ -iname gk_directory.gog)" ] || \
-       [ -n "$(find "$_directory"/ -iname gk2dos.bat)" ] || \
-       [ -n "$(find "$_directory"/ -iname express.exe)" ] || \
-       [ -n "$(find "$_directory"/ -iname torin.exe)" ] ; then
+       [ -n "$(find "$_directory"/ -iname express.exe)" ]; then
         # Unsupported by scummvm
         return
     elif [ -e "$_directory/scripts.zfs" ]; then
         echo zgi
         return
     fi
+    # if echo "$_game" | grep -q "Incredible Machine" || \
+    #    [ "$_game" = "King's Quest 7 - The Princeless Bride" ] || \
+    #    [ "$_game" = "Police Quest - SWAT" ] || \
+    #    [ "$_game" = "Quest for Glory 4 - Shadows of Darkness" ] || \
+    #    [ "$_game" = "Roberta Williams' Phantasmagoria" ] || \
+    #    [ "$_game" = "Space Quest 6 - Roger Wilco in the Spinal Frontier" ] || \
+    #    [ "$_game" = "Betrayal at Krondor" ] || \
+    #    [ "$_game" = "Gabriel Knight - Sins of the Fathers" ] || \
+    #    [ -n "$(find "$_directory"/ -iname gk_directory.gog)" ] || \
+    #    [ -n "$(find "$_directory"/ -iname gk2dos.bat)" ] || \
+    #    [ -n "$(find "$_directory"/ -iname express.exe)" ] || \
+    #    [ -n "$(find "$_directory"/ -iname torin.exe)" ] ; then
+    #     # Unsupported by scummvm
+    #     return
+    # elif [ -e "$_directory/scripts.zfs" ]; then
+    #     echo zgi
+    #     return
+    # fi
 
     scummvm_game_id_name="$(echo "$_game" | sed 's/ - /: /')"
     game_id_line="$(grep -i "   *$scummvm_game_id_name$" "$scummvm_wrapper_template/Contents/Resources/GameIDs.txt" | head -n 1)" || \
