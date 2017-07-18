@@ -8,7 +8,9 @@
 # - If galaxy, rename the app to match the name from the info file
 
 usage () {
-    echo >&2 "Usage: ${0##*/} GAME_APP [[GAME_APP]..]"
+    echo >&2 "Usage: ${0##*/} [-d] GAME_APP [[GAME_APP]..]"
+    echo >&2
+    echo >&2 "-d:   Direct launch. Run the game exe, not through Galaxy."
     exit 2
 }
 
@@ -107,6 +109,19 @@ configure_icon () {
 scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
 PATH="$scriptdir:$PATH"
 
+direct_launch=0
+while getopts dh opt; do
+    case "$opt" in
+        d)
+            direct_launch=1
+            ;;
+        \?|h)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 if [ $# -eq 0 ]; then
     usage
 fi
@@ -161,8 +176,17 @@ for game; do
     fi
 
     wine_gamedir="/${gamedir#drive_c/}"
-    plist_set "Program Name and Path" "/Program Files/GOG Galaxy/GalaxyClient.exe" Contents/Info.plist
-    plist_set "Program Flags" "/command=runGame /gameId=$game_id /path=\\\"$(echo "c:$wine_gamedir" | sed 's,/,\\\\,g')\\\"" Contents/Info.plist
+    if [ $direct_launch -eq 1 ]; then
+        playinfo="$(jq '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile" | sed 's,^
+        ",,; s,"$,,')"
+        exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1 | tr "\\" "/")"
+        exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
+        plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
+        plist_set "Program Flags" "$exeargs" Contents/Info.plist
+    else
+        plist_set "Program Name and Path" "/Program Files/GOG Galaxy/GalaxyClient.exe" Contents/Info.plist
+        plist_set "Program Flags" "/command=runGame /gameId=$game_id /path=\\\"$(echo "c:$wine_gamedir" | sed 's,/,\\\\,g')\\\"" Contents/Info.plist
+    fi
 
     cd "$topdir" 2>/dev/null || break
 done
