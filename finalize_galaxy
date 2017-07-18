@@ -26,7 +26,19 @@ largest_file () {
 }
 
 plist_set () {
-    /usr/libexec/PlistBuddy -c "Set '$(printf "%s" "$1" | sed "s/'/\\\\'/g")' '$(printf "%s" "$2" | sed "s/'/\\\\'/g")'" "$3"
+    if ! pb -c "Print '$(pb_escape_value "$1")'" "$3" >/dev/null 2>&1; then
+        pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
+    else
+        pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+    fi
+}
+
+pb () {
+    /usr/libexec/PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
 }
 
 new_webloc () {
@@ -132,10 +144,6 @@ for game; do
 
     create_wineskin_customexes "$infofile" "$gamedir" .
 
-    playinfo="$(jq '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile" | sed 's,^",,; s,"$,,')"
-    exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1 | tr "\\" "/")"
-    exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
-
     name="$(jq -r '.name' "$infofile" | sed 's,   *, ,g')"
     if [ -n "$name" ]; then
         plist_set CFBundleName "$name" Contents/Info.plist
@@ -153,8 +161,8 @@ for game; do
     fi
 
     wine_gamedir="/${gamedir#drive_c/}"
-    plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
-    plist_set "Program Flags" "$exeargs" Contents/Info.plist
+    plist_set "Program Name and Path" "/Program Files/GOG Galaxy/GalaxyClient.exe" Contents/Info.plist
+    plist_set "Program Flags" "/command=runGame /gameId=$game_id /path=\\\"$(echo "c:$wine_gamedir" | sed 's,/,\\\\,g')\\\"" Contents/Info.plist
 
     cd "$topdir" 2>/dev/null || break
 done
