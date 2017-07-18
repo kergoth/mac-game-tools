@@ -1,0 +1,19 @@
+#!/bin/sh
+
+PATH="$(dirname "$0"):$PATH"
+tmpfile="$(mktemp -t "mac-graphics.reg.XXXXXX")" || exit 1
+trap 'rm -f "$tmpfile"' EXIT INT TERM
+
+cat >"$tmpfile" <<END
+REGEDIT4
+
+[HKEY_CURRENT_USER\\Software\\Wine\\Drivers]
+"Graphics"="mac"
+END
+
+for app; do
+    app="${app%.app}.app"
+    if ! grep -qx '"Graphics"="mac"' "$app/Contents/Resources/user.reg"; then
+        wineskin-run "$app" wine regedit /C "$tmpfile"
+    fi
+done
