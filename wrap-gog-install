@@ -88,19 +88,26 @@ wrap_install () {
         new-gog-wrapper "$wrap_out" "$wrap_name"
     fi
 
+    if [ -h "$wrap_out/Games" ]; then
+        relgames="$(readlink "$wrap_out/Games")"
+    else
+        relgames="drive_c/GOG Games"
+    fi
+    gamesdir="$wrap_out/$relgames"
+    mkdir -p "$gamesdir"
     case "$mode" in
         copy)
-            cp -a "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            cp -a "$wrap_installdir" "$gamesdir/$wrap_name"
             ;;
         move)
-            mv "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            mv "$wrap_installdir" "$gamesdir/$wrap_name"
             ;;
         symlink)
-            lnr "$wrap_installdir" "$wrap_out/drive_c/GOG Games/$wrap_name"
+            ln -s "$wrap_installdir" "$gamesdir/$wrap_name"
             ;;
     esac
     rm -f "$wrap_out/Game"
-    ln -s "drive_c/GOG Games/$wrap_name" "$wrap_out/Game"
+    ln -s "$relgames/$wrap_name" "$wrap_out/Game"
     cp -f "$scriptdir/finalize_gog" "$scriptdir/finalize_galaxy" "$wrap_out/Contents/Resources/"
     "$wrap_out/finalize_gog"
 }
