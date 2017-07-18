@@ -1,0 +1,54 @@
+#!/bin/sh
+
+app="$(cd "${1%.app}.app" && pwd -P)"
+shift
+
+frameworks="$app/Contents/Frameworks"
+engine="$frameworks/wswine.bundle"
+wineskin="$app/Wineskin.app"
+lib_path="$frameworks:$engine/lib:/usr/lib:/usr/libexec:/usr/lib/system:/opt/X11/lib:/opt/local/lib:/usr/X11/lib:/usr/X11R6/lib"
+
+plist_get () {
+    pb -c "Print '$(pb_escape_value "$1")'" "$2"
+}
+
+plist_set () {
+    if ! pb -c "Print '$(pb_escape_value "$1")'" "$3" >/dev/null 2>&1; then
+        pb -c "Add '$(pb_escape_value "$1")' '${4:-string}' '$(pb_escape_value "$2")'" "$3"
+    else
+        pb -c "Set '$(pb_escape_value "$1")' '$(pb_escape_value "$2")'" "$3"
+    fi
+}
+
+pb () {
+    /usr/libexec/PlistBuddy "$@"
+}
+
+pb_escape_value () {
+    printf "%s" "$1" | sed "s/'/\\\\'/g"
+}
+
+plist="$app/Contents/Info.plist"
+symlinks="$(plist_get "Symlinks In User Folder" "$plist")"
+if [ "$symlinks" = "true" ]; then
+    for path in "My Videos" "Desktop" "My Music" "My Pictures" "My Documents"; do
+        dest="$(plist_get "Symlink $path" "$plist" | sed "s,\$HOME,$HOME,g")"
+        link_path="$app/Contents/Resources/drive_c/users/Wineskin/$path"
+        rm -f "$link_path"
+        ln -s "$dest" "$link_path"
+    done
+fi
+
+env \
+    WINESKIN_LIB_PATH_FOR_FALLBACK="$lib_path" \
+    DYLD_FALLBACK_LIBRARY_PATH="$lib_path" \
+    PATH="$engine/bin:$frameworks/bin:$wineskin/Contents/Resources:$PATH:/opt/local/bin:/opt/local/sbin" \
+    WINEPREFIX="$app/Contents/Resources" \
+    "$@"
+
+if [ "$symlinks" = "true" ]; then
+    for path in "My Videos" "Desktop" "My Music" "My Pictures" "My Documents"; do
+        link_path="$app/Contents/Resources/drive_c/users/Wineskin/$path"
+        rm -f "$link_path"
+    done
+fi
