@@ -163,10 +163,10 @@ case "$gamedir" in
     */Program\ Files/Steam)
         gamedir="$(cd "$game" && find "$gamedir/SteamApps/common" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
         ;;
-    */Program\ Files/GalaxyClient)
+    */Program\ Files/GalaxyClient|*/Program\ Files/GOG\ Galaxy)
         drive="$(dirname "$(dirname "$gamedir")")"
         gamedir=
-        for gamesdir in "GOG Games" "Program Files/GOG.com"; do
+        for gamesdir in "GOG Games" "Program Files/GOG.com" Games; do
             if [ -d "$game/$drive/$gamesdir" ]; then
                 gamedir="$(cd "$game" && find "$drive/$gamesdir" -type d -mindepth 1 -maxdepth 1 | head -n 1)"
                 if [ -n "$gamedir" ]; then
