@@ -90,15 +90,7 @@ if [ -z "$template" ]; then
 fi
 
 echo >&2 "Template: $template"
-if which gcp >/dev/null 2>&1; then
-    gcp -al "$template" "$wrapper_path"
-    for i in "$wrapper_path"/Contents/Info.plist "$wrapper_path/Contents/Resources/user.reg" "$wrapper_path/Contents/Resources/system.reg"; do
-        cp "$i" "$i.new"
-        mv "$i.new" "$i"
-    done
-else
-    cp -a "$template" "$wrapper_path"
-fi
+cp -a "$template" "$wrapper_path"
 
 plist_set CFBundleIdentifier "org.kergoth.gog.$(printf "%s" "$wrapper_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')" "$wrapper_path/Contents/Info.plist"
 plist_set CFBundleName "$wrapper_name" "$wrapper_path/Contents/Info.plist"
