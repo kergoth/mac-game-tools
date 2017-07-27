@@ -159,6 +159,20 @@ for game; do
 
     create_wineskin_customexes "$infofile" "$gamedir" .
 
+    wine_gamedir="/${gamedir#drive_c/}"
+    playinfo="$(jq -r '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile")"
+    exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1 | tr "\\" "/")"
+    exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
+    if [ $direct_launch -eq 1 ]; then
+        plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
+        plist_set "Program Flags" "$exeargs" Contents/Info.plist
+    else
+        plist_set "Program Name and Path" "/Program Files/GOG Galaxy/GalaxyClient.exe" Contents/Info.plist
+        plist_set "Program Flags" "/command=runGame /gameId=$game_id /path=\\\"$(echo "c:$wine_gamedir" | sed 's,/,\\\\,g')\\\"" Contents/Info.plist
+        create_customexe "Direct Launch" "$gamedir/$exepath" "$exeargs" .
+        cp -f Contents/Resources/Wineskin.icns "Direct Launch.app/Contents/Resources/Wineskin.icns"
+    fi
+
     name="$(jq -r '.name' "$infofile" | sed 's,   *, ,g')"
     if [ -n "$name" ]; then
         plist_set CFBundleName "$name" Contents/Info.plist
@@ -173,18 +187,6 @@ for game; do
                 game="$new_game"
             fi
         fi
-    fi
-
-    wine_gamedir="/${gamedir#drive_c/}"
-    if [ $direct_launch -eq 1 ]; then
-        playinfo="$(jq -r '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile")"
-        exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1 | tr "\\" "/")"
-        exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
-        plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
-        plist_set "Program Flags" "$exeargs" Contents/Info.plist
-    else
-        plist_set "Program Name and Path" "/Program Files/GOG Galaxy/GalaxyClient.exe" Contents/Info.plist
-        plist_set "Program Flags" "/command=runGame /gameId=$game_id /path=\\\"$(echo "c:$wine_gamedir" | sed 's,/,\\\\,g')\\\"" Contents/Info.plist
     fi
 
     cd "$topdir" 2>/dev/null || break
