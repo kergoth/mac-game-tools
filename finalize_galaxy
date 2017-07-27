@@ -177,8 +177,7 @@ for game; do
 
     wine_gamedir="/${gamedir#drive_c/}"
     if [ $direct_launch -eq 1 ]; then
-        playinfo="$(jq '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile" | sed 's,^
-        ",,; s,"$,,')"
+        playinfo="$(jq '.playTasks[] | select(.isPrimary == true) | .path + "|" + .arguments' "$infofile" | sed 's,^ ",,; s,"$,,')"
         exepath="$(printf "%s" "$playinfo" | cut -d"|" -f1 | tr "\\" "/")"
         exeargs="$(printf "%s" "$playinfo" | cut -d"|" -f2)"
         plist_set "Program Name and Path" "$wine_gamedir/$exepath" Contents/Info.plist
