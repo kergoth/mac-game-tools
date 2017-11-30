@@ -145,7 +145,11 @@ shift $((OPTIND - 1))
 
 mkdir -p _metadata
 
-find "$@" -iname \*.app -prune | while read -r game; do
+tmp="$(mktemp -t "${0##*/}.XXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+find "$@" -iname \*.app -prune >"$tmp"
+len="$(wc -l <"$tmp")"
+cat "$tmp" | while read -r game; do
     base="$(basename "$game" | sed 's,\.app$,,')"
     search_query="$(echo "$base" | sed 's,(.*),,g; s,\[.*\],,g; s,^[0-9.]* *- *,,;' | tr -d '[:punct:]' | sed 's,   *, ,g; s, $,,; s,^ ,,;')"
     toml="_metadata/$base.toml"
@@ -163,7 +167,7 @@ find "$@" -iname \*.app -prune | while read -r game; do
 
     if [ $quiet -eq 0 ] || [ $write -eq 1 ]; then
         printf "%s\t%s\t%s\n" "$game" "$lookup_game" "$hltb"
-        if [ "$write" -eq 1 ]; then
+        if [ "${write:-0}" -eq 1 ] && [ $len -gt 1 ]; then
             delay
         fi
     fi
