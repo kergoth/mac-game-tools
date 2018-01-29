@@ -1,5 +1,5 @@
 #!/bin/sh
 
 ls -d [0-9]*/ | grep -v 'Unsorted' | sort -n | tr '\n' '\0' | \
-    xargs -0 -n 1 lstree | grep -E '(/|\.app)$' | sed 's,\.app$,,' | \
+    xargs -0 -n 1 lstree -s | grep -E '(/|\.app)$' | sed 's,\.app$,,' | \
     update-gist-generic "$@" https://gist.github.com/kergoth/4a96c92d64948d52a468 games-backlog.txt
