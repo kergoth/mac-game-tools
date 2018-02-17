@@ -142,7 +142,7 @@ base_url=http://www.metacritic.com/game
 mkdir -p _metadata
 tmp="$(mktemp -t "${0##*/}.XXXXX")" || exit 1
 trap 'rm -f "$tmp"' EXIT INT TERM
-find "$@" -iname \*.app -prune >"$tmp"
+find -s "$@" -iname \*.app -prune >"$tmp"
 len="$(wc -l <"$tmp")"
 cat "$tmp" | while read -r game; do
     base="$(basename "$game" | sed 's,\.app$,,')"
