@@ -6,6 +6,15 @@ if [ $# -eq 0 ]; then
     set -- [0-9]*
 fi
 
+rounded_rating () {
+    local query="$1"
+    local toml="$2"
+    local toml_score="$(toml-get -f "$toml" "$query" 2>/dev/null)"
+    if [ -n "$toml_score" ]; then
+        python3 -c "import sys; print('{0:.1f}'.format(float(sys.argv[1])))" "$toml_score"
+    fi
+}
+
 get_metacritic_scores () {
     local search_query="$1"
     local toml="$2"
@@ -31,9 +40,9 @@ get_metacritic_scores () {
     fi
 
     local score
-    score="$(toml-get metacritic.score <"$toml" 2>/dev/null)"
+    score="$(toml-get -f "$toml" metacritic.score 2>/dev/null)"
     local user_score
-    user_score="$(toml-get metacritic.user_score <"$toml" 2>/dev/null)"
+    user_score="$(rounded_rating metacritic.user_score "$toml")"
     if [ -z "$score" ] || [ -z "$user_score" ]; then
         write=1
         local scores platform
@@ -72,7 +81,7 @@ get_imdb_rating () {
     local toml="$2"
     local write=0
     local game title_id rating
-    rating="$(toml-get imdb.rating <"$toml" 2>/dev/null)"
+    rating="$(rounded_rating imdb.rating "$toml")"
     if [ -z "$rating" ]; then
         write=1
         local ratings_info
