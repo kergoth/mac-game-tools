@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# find [0-9]* -type l -iname "*$**"
+fd -t l "$*" [12345]*
+

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+for url; do
+    if [ $# -gt 1 ]; then
+        printf '%s\t' "$url"
+    fi
+    http --check-status --ignore-stdin "$url" | pup '.pm_item a span, .metascore_anchor .metascore_w text{}' | tr '\n' '\t'
+    if [ $# -gt 1 ]; then
+        sleep 1
+    fi
+    printf '\n'
+done

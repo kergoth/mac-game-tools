@@ -1,0 +1,16 @@
+#!/bin/sh
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir/scoring-methods:$scriptdir:$PATH"
+
+tab="$(printf '\t')"
+for identifier; do
+    method="${identifier%:*}"
+    identifier="${identifier##*:}"
+    ${method}_score "$identifier" | \
+        while IFS="$tab" read -r identifier title scores; do
+            toml-set-string -f scoring.toml "$method.games.$identifier.title" "$title"
+            toml-set-string-array -f scoring.toml "$method.games.$identifier.scores" $scores
+            printf '%s:%s\t%s\t%s\n' "$method" "$identifier" "$title" "$scores"
+        done
+done

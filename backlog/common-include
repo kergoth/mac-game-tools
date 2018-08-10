@@ -1,0 +1,7 @@
+title_sanitize () {
+    sanitized_title="${1%.app}"
+    sanitized_title="${sanitized_title##*/}"
+    # I use toml, so brackets in table names can cause issues
+    sanitized_title="$(echo "$sanitized_title" | tr -d '[]')"
+    echo "$sanitized_title"
+}

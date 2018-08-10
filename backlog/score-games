@@ -11,7 +11,7 @@ rounded_rating () {
     local toml="$2"
     local toml_score="$(toml-get -f "$toml" "$query" 2>/dev/null)"
     if [ -n "$toml_score" ]; then
-        python3 -c "import sys; print('{0:.1f}'.format(float(sys.argv[1])))" "$toml_score"
+        round "$toml_score"
     fi
 }
 
@@ -116,6 +116,52 @@ get_imdb_rating () {
     printf "%d\t%s\t%s\n" "$write" "$game" "$rating"
 }
 
+get_opencritic_rating () {
+    local search_query="$1"
+    local toml="$2"
+    local write=0
+    local game title_id rating
+    rating="$(rounded_rating opencritic.rating "$toml")"
+    if [ -z "$rating" ]; then
+        write=1
+        local ratings_info
+        ratings_info="$("$scriptdir/oc_search" "$search_query" 2>/dev/null | head -n 1)"
+        if [ $? -eq 0 ]; then
+            game="$(echo "$ratings_info" | cut -d"	" -f1)"
+            if [ "$game" != "$search_query" ]; then
+                # echo >&2 "Mismatch in OpenCritic search result: $search_query -> $game"
+                game="##invalid##"
+                title_id=0
+                rating=0
+            else
+                title_id="$(echo "$ratings_info" | cut -d"	" -f2)"
+                rating="$(echo "$ratings_info" | cut -d"	" -f3)"
+            fi
+        else
+            # No search results found
+            game="##invalid##"
+            title_id=0
+            rating=0
+        fi
+    else
+        game="$(toml-get opencritic.title <"$toml" 2>/dev/null)" || return 1
+    fi
+
+    rating="$(echo "$rating" | cut -d. -f1)"
+
+    if [ $write -eq 1 ]; then
+        if ! toml-get opencritic <"$toml" >/dev/null 2>&1; then
+            echo '[opencritic]' >>"$toml"
+        fi
+        cat "$toml" | \
+            toml-set-string opencritic.title "$game" | \
+            toml-set opencritic.id "$title_id" | \
+            toml-set opencritic.rating "$rating" >"$toml.new" && \
+            mv "$toml.new" "$toml"
+    fi
+    printf "%d\t%s\t%s\n" "$write" "$game" "$rating"
+}
+
 critic_score () {
     http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w span text{}'
 }
@@ -125,8 +171,19 @@ critic_scores () {
 }
 
 critic_search () {
-    metacritic_root="http://www.metacritic.com"
-    http --check-status --ignore-stdin "${metacritic_root}/search/game/$*/results" | pup 'a.col_left attr{href}' | sed "s,^,$metacritic_root," | sed -nE -e 's,(/game/pc/[^/]*)/?.*,\1,p'
+    grab-links "http://www.metacritic.com/search/game/$*/results" .search_results a | uniq-seen | grep /pc/
+}
+
+oc_search () {
+    http -FI http://api.opencritic.com/api/game/search "criteria==$*" | jq -r '.[0] | [.id, .name] | map(tostring) | join("\t")'
+}
+
+oc_score () {
+    http -FI http://api.opencritic.com/api/game/score "id==$*" | jq -r .score
+}
+
+round () {
+    echo "$*" | python3 -c 'import sys; print(round(float(sys.stdin.read().rstrip()), 1))'
 }
 
 
@@ -159,15 +216,24 @@ cat "$tmp" | while read -r game; do
     toml="_metadata/$base.toml"
     touch "$toml"
 
-    results="$(get_metacritic_scores "$search_query" "$toml")"
+    results="$(get_opencritic_rating "$search_query" "$toml")" || :
     write="$(echo "$results" | cut -d"	" -f1)"
     lookup_game="$(echo "$results" | cut -d"	" -f2)"
     scores="$(echo "$results" | cut -d"	" -f3-)"
-    if [ "$scores" = "0	0.0" ]; then
-        results="$(get_imdb_rating "$search_query" "$toml")"
+    if [ -z "$scores" ]; then
+        scores=0
+    fi
+    if [ "$scores" = "0" ]; then
+        results="$(get_metacritic_scores "$search_query" "$toml")"
         write="$(echo "$results" | cut -d"	" -f1)"
         lookup_game="$(echo "$results" | cut -d"	" -f2)"
         scores="$scores	$(echo "$results" | cut -d"	" -f3-)"
+        if [ "$scores" = "0	0	0.0" ]; then
+            results="$(get_imdb_rating "$search_query" "$toml")"
+            write="$(echo "$results" | cut -d"	" -f1)"
+            lookup_game="$(echo "$results" | cut -d"	" -f2)"
+            scores="$scores	$(echo "$results" | cut -d"	" -f3-)"
+        fi
     fi
 
     if [ "${quiet:-0}" -eq 0 ] || [ "${write:-0}" -eq 1 ]; then

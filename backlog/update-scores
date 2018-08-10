@@ -1,0 +1,11 @@
+#!/bin/sh
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir/scoring-methods:$scriptdir:$PATH"
+. "$scriptdir/common-include"
+
+for gametitle; do
+    gametitle="$(title_sanitize "$gametitle")"
+    toml-get-array-lines -f game-scores.toml "$gametitle.identifiers" | \
+        tr '\n' '\0' | xargs -0 score-by-id
+done

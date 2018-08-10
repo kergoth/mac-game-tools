@@ -1,0 +1,31 @@
+#!/bin/sh
+
+list_words () {
+    echo "$*" | tr -d ':.\-_/' | tr '[:upper:]' '[:lower:]' | tr ' ' '\n' | sort -u
+}
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir/scoring-methods:$scriptdir:$PATH"
+. "$scriptdir/common-include"
+
+tmpdir="$(mktemp -d -t "${0##*/}.XXXXXX")" || exit 1
+trap 'rm -rf "$tmpdir"' EXIT INT TERM
+
+tab="$(printf '\t')"
+search_query="$(title_sanitize "$*")"
+search_query="$(echo "$search_query" | sed -e 's/ - / /g; s/: / /g' | tr -d ',()+')"
+list_words "$search_query" >"$tmpdir/search"
+for method in itad steamspy opencritic metacritic imdb; do
+    ${method}_search "$search_query" | \
+        while IFS="$tab" read -r identifier title scores; do
+            toml-set-string -f scoring.toml "$method.games.$identifier.title" "$title"
+            toml-set-string-array -f scoring.toml "$method.games.$identifier.scores" $scores
+            list_words "$title" >"$tmpdir/title"
+            if [ $(comm -23 "$tmpdir/search" "$tmpdir/title" | wc -l) -ne 0 ]; then
+                # echo >&2 "Some words from the search query ($search_query) are not in the result title ($title), skipping"
+                :
+            else
+                printf '%s:%s\t%s\t%s\n' "$method" "$identifier" "$title" "$scores" || exit 1
+            fi
+        done | head -n 5
+done

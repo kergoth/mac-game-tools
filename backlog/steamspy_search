@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -x
+
+# appid="$(http -FI https://steamspy.com/search.php "s==$*" | pup .content a 'attr{href}' | grep '^/app/' | head -n 1 | cut -d/ -f3)"
+# if [ -z "$appid" ]; then
+#     echo >&2 "Error: no search results for $*"
+#     exit 1
+# fi
+# http -FI https://steamspy.com/api.php request==appdetails "appid==$appid" | \
+#     jq -r '[.appid, .name, .score_rank, .userscore] | map(tostring) | join("\t")'
+
+http -FI https://steamspy.com/search.php "s==$*" | pup .content a 'attr{href}' | grep '^/app/' | cut -d/ -f3 | while read -r appid; do
+    http -FI https://steamspy.com/api.php request==appdetails "appid==$appid" | \
+        jq -r '[.appid, .name, .score_rank, .userscore] | map(tostring) | join("\t")'
+    sleep 0.5
+done

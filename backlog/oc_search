@@ -1,0 +1,33 @@
+#!/bin/bash
+
+search () {
+    cachefn="search.$(echo "$*" | tr ' ' '-')"
+    if [ -e "$cachefn" ]; then
+        cat "$cachefn"
+    else
+        http -FI http://api.opencritic.com/api/game/search "criteria==$*" | tee "$cachefn"
+    fi | jq -r '.[0] | [.id, .name] | map(tostring) | join("\t")'
+}
+
+score () {
+    cachefn="score.$(echo "$*" | tr ' ' '-')"
+    if [ -e "$cachefn" ]; then
+        cat "$cachefn"
+    else
+        http -FI http://api.opencritic.com/api/game/score "id==$*" | tee "$cachefn"
+    fi | jq -r .score
+}
+
+round () {
+    echo "$*" | python3 -c 'import sys; print(round(float(sys.stdin.read().rstrip()), 2))'
+}
+
+result="$(search "$*")"
+if [ -z "$result" ]; then
+    echo >&2 "Error: no score found for $*"
+    exit 1
+fi
+
+id="$(echo "$result" | cut -d$'\t' -f1)"
+name="$(echo "$result" | cut -d$'\t' -f2)"
+printf '%s\t%s\t%s\n' "$name" "$id" "$(round "$(score "$id")")"

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+scriptdir="$(cd "$(dirname "$0")" && pwd -P)"
+PATH="$scriptdir/scoring-methods:$scriptdir:$PATH"
+. "$scriptdir/common-include"
+
+gametitle="$(title_sanitize "$1")"
+shift
+
+tomlfile="game-scores.toml"
+toml-set-string-array -f "$tomlfile" "$gametitle.scores" ""
+toml-set-string-array -f "$tomlfile" "$gametitle.identifiers" "$@"
+for identifier; do
+    if [ -z "$identifier" ]; then
+        continue
+    fi
+    method="${identifier%:*}"
+    identifier="${identifier#*:}"
+    if [ $(toml-get-array-lines -f scoring.toml "$method.games.$identifier.scores" | wc -l) -ne 0 ]; then
+        title="$(toml-get -f scoring.toml "$method.games.$identifier.title")"
+        scores="$(toml-get-array-lines -f scoring.toml "$method.games.$identifier.scores" | tr '\n' '\t')"
+        printf '%s\t%s\t%s\t%s\n' "$gametitle" "$method" "$title" "$scores"
+        toml-set-string-array -f "$tomlfile" "$gametitle.scores" $scores
+        break
+    fi
+done
+exit 0

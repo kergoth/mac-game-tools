@@ -1,0 +1,4 @@
+#!/bin/sh
+
+PATH="$(dirname "$0"):$PATH"
+grab-links "http://www.metacritic.com/search/game/$*/results" a.col_left | grep /game/pc/ | sort | tr '\n' '\0' | xargs -0  get-metacritic-url-scores

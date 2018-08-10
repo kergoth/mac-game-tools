@@ -1,0 +1,11 @@
+#!/bin/sh
+
+grab-links "http://www.metacritic.com/search/game/$*/results" .search_results a | uniq-seen | grep /pc/ | while read -r url; do
+    http --check-status --ignore-stdin "$url" | \
+        pup '.pm_item span, .metascore_anchor .metascore_w text{}' | tr '\n' '\t' | (
+            IFS="$(printf '\t')" read -r title score1 score2
+            printf '%s\t%s\t%s\t%s\n' "$url" "$title" "$score1" "$score2"
+        )
+    # title="$(http --check-status --ignore-stdin "$url" | pup .pm_item span 'text{}')"
+    sleep 0.5
+done

@@ -1,0 +1,79 @@
+#!/bin/sh
+
+metacritic_root="http://www.metacritic.com"
+base_url="$metacritic_root/games"
+
+critic_score () {
+    http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w span text{}'
+}
+
+critic_scores () {
+    http --check-status --ignore-stdin "$@" | pup '.metascore_anchor .metascore_w text{}' | tr '\n' '\t'
+}
+
+critic_search () {
+    http --check-status --ignore-stdin "${metacritic_root}/search/game/$*/results" | pup 'a.col_left attr{href}' | sed "s,^,$metacritic_root," | sed -nE -e 's,(/game/pc/[^/]*)/?.*,\1,p'
+}
+
+get_metacritic_scores () {
+    local search_query="$1"
+    local toml="$2"
+    local write=0
+    local mc_game
+    mc_game="$(toml-get metacritic.game <"$toml" 2>/dev/null)"
+    if [ $? -ne 0 ]; then
+        platform="$(toml-get metacritic.platform <"$toml" 2>/dev/null)"
+        if ! http --check-status --ignore-stdin -h "$base_url/${platform:-pc}/$mc_game" >/dev/null 2>&1; then
+            local mc_url
+            mc_url="$(critic_search "$search_query" | head -n 1)" || return 1
+            if [ -n "$mc_url" ]; then
+                mc_game="${mc_url#$base_url/}"
+                mc_platform="${mc_game%%/*}"
+                mc_game="${mc_game#*/}"
+                if [ "$mc_game" = "$mc_url" ]; then
+                    echo >&2 "Error: unrecognized metacritic url $mc_url for $mc_game"
+                    exit 1
+                fi
+            fi
+        fi
+        write=1
+    fi
+
+    local score
+    score="$(toml-get metacritic.score <"$toml" 2>/dev/null)"
+    local user_score
+    user_score="$(toml-get metacritic.user_score <"$toml" 2>/dev/null)"
+    if [ -z "$score" ] || [ -z "$user_score" ]; then
+        write=1
+        local scores platform
+        platform="$(toml-get metacritic.platform <"$toml" 2>/dev/null)"
+        scores="$(critic_scores "$base_url/${platform:-pc}/$mc_game")"
+        if [ -z "$scores" ]; then
+            score="0"
+            user_score="0.0"
+        else
+            score="$(echo "$scores" | cut -d"	" -f1)"
+            user_score="$(echo "$scores" | cut -d"	" -f2)"
+            if [ "$score" = "tbd" ]; then
+                score="0"
+            fi
+            if [ "$user_score" = "tbd" ] || [ -z "$user_score" ]; then
+                user_score="0.0"
+            fi
+        fi
+    fi
+
+    if [ $write -eq 1 ]; then
+        if ! toml-get metacritic <"$toml" >/dev/null 2>&1; then
+            echo '[metacritic]' >>"$toml"
+        fi
+        cat "$toml" | \
+            toml-set-string metacritic.game "$mc_game" | \
+            toml-set-string metacritic.platform "${mc_platform:-pc}" | \
+            toml-set metacritic.score "$score" metacritic.user_score "$user_score" >"$toml.new" && \
+            mv "$toml.new" "$toml"
+    fi
+    printf "%d\t%s\t%d\t%s\n" "$write" "$mc_game" "$score" "$user_score"
+}
+
+get_metacritic_scores "$@"
