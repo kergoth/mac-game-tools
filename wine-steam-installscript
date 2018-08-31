@@ -288,11 +288,12 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                     tricks_to_install = None
 
                 if tricks_to_install:
+                    # Winetricks manages wineserver itself, drop ours
                     subprocess.run(['wineserver', '-k'])
                     subprocess.run(['wineserver', '-w'])
                     cmd = ['winetricks'] + tricks_to_install
                     strcmd = subprocess.list2cmdline(cmd)
-                    click.echo(f'Running process {key}: {strcmd}')
+                    click.echo(f'Running {strcmd} for process {key}')
                     subprocess.run(cmd, stdin=subprocess.DEVNULL, close_fds=True)
                     subprocess.run(['wineserver', '-p'])
                 else:
