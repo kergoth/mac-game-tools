@@ -10,7 +10,6 @@
 # host paths in drive_z in the registry
 # TODO: clean up the wine execution output on stderr, suppressing it until/if
 # there's a failure, by default
-# TODO: make sure we check for failure on all of the wine executions
 
 import click
 import collections
@@ -32,7 +31,8 @@ WIN_USERNAME = 'steamuser'
 # directx is rarely a good idea, vcredists usually aren't needed, and when
 # they are, they should be winetricks, and dotnet needs winetricks also
 # TODO: consider automatically using winetricks in the dotnet case
-DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc|dotnet'
+DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+DEFAULT_WINETRICKS_MAP = 'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
 class CaseInsensitiveDict(collections.OrderedDict):
@@ -69,11 +69,14 @@ class CaseInsensitiveDict(collections.OrderedDict):
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('-b', '--blacklist', help='Regex for processes to exclude from execution. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_BLACKLIST)
+@click.option('-t', '--tricks', help='Map of regex patterns to winetricks to install. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_WINETRICKS_MAP)
 @click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
 @click.argument('appmanifest', nargs=1, required=True)
-def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
+def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
+    if tricks:
+        tricks = dict(((re.compile(r, re.IGNORECASE), t.split()) for r, t in (entry.split(':') for entry in tricks.split(';'))))
 
     appmanifest = Path(appmanifest).resolve(strict=True)
     if use_installdir:
@@ -125,7 +128,7 @@ def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
 
         rp = inst.iget('run process')
         if rp:
-            runprocess(rp, installdir, context, blacklist)
+            runprocess(rp, installdir, context, blacklist, tricks)
 
         reg = inst.iget('registry')
         if reg:
@@ -235,7 +238,7 @@ def copyfolders(reg, installdir, context):
                     shutil.copytree(src, dest, symlinks=True)
 
 
-def runprocess(rp, installdir, context, blacklist):
+def runprocess(rp, installdir, context, blacklist, tricks):
     for key, entry in rp.items():
         run = True
         nocleanup = entry.escaped_get('nocleanup', context)
@@ -268,22 +271,43 @@ def runprocess(rp, installdir, context, blacklist):
             cmds = []
             for i in range(1, MAX_PROCS):
                 process = entry.escaped_get(f'process {i}', context)
-                command = entry.escaped_get(f'command {i}', context)
-                if not process or not command:
+                if not process:
+                    print()
                     break
+                command = entry.escaped_get(f'command {i}', context)
 
                 if blacklist and re.search(blacklist, process):
                     click.echo(f'Skipping blacklisted runprocess {key}')
                     continue
 
-                click.echo(f'Running process {key}: {process} {command}')
-                cmd = [process] + shlex.split(command)
-                try:
-                    wine(cmd)
-                except subprocess.CalledProcessError:
-                    ignoreexitcode = entry.iget('ignoreexitcode')
-                    if ignoreexitcode != '1':
-                        sys.exit(f'Failed to run wine {process} {command}')
+                for regex, winetricks in tricks.items():
+                    if regex.search(process) or (command and regex.search(command)) or (hasrunkey and regex.search(hasrunkey)):
+                        tricks_to_install = winetricks
+                        break
+                else:
+                    tricks_to_install = None
+
+                if tricks_to_install:
+                    subprocess.run(['wineserver', '-k'])
+                    subprocess.run(['wineserver', '-w'])
+                    cmd = ['winetricks'] + tricks_to_install
+                    strcmd = subprocess.list2cmdline(cmd)
+                    click.echo(f'Running process {key}: {strcmd}')
+                    subprocess.run(cmd, stdin=subprocess.DEVNULL, close_fds=True)
+                    subprocess.run(['wineserver', '-p'])
+                else:
+                    cmd = ['start', process]
+                    if command:
+                        cmd += shlex.split(command)
+                    strcmd = subprocess.list2cmdline(cmd)
+
+                    click.echo(f'Running process {key}: {strcmd}')
+                    try:
+                        wine(cmd)
+                    except WineError as exc:
+                        ignoreexitcode = entry.iget('ignoreexitcode')
+                        if ignoreexitcode != '1':
+                            raise
 
             if hasrunkey:
                 wine(['reg', 'delete', hasrunkey, '/v', key, '/f'], check=False)
