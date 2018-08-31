@@ -106,7 +106,7 @@ main () {
         mv "$maindir" "$wrap_out/$steamapps/common/"
     else
         cp -a "$acf_file" "$wrap_out/$steamapps/"
-        cp -a "$maindir" "$wrap_out/$steamapps/common/"
+        rsync -aPph "$maindir" "$wrap_out/$steamapps/common/"
     fi
     rm -f "$wrap_out/Game"
     ln -s "$steamapps/common/$installdir" "$wrap_out/Game"
