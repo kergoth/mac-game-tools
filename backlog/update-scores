@@ -6,6 +6,6 @@ PATH="$scriptdir/scoring-methods:$scriptdir:$PATH"
 
 for gametitle; do
     gametitle="$(title_sanitize "$gametitle")"
-    toml-get-array-lines -f game-scores.toml "$gametitle.identifiers" | \
+    tomlq -f game-scores.toml "$gametitle" | toml-get-array-lines identifiers | \
         tr '\n' '\0' | xargs -0 score-by-id
 done

@@ -8,19 +8,19 @@ tab="$(printf '\t')"
 for gametitle; do
     gametitle="$(title_sanitize "$gametitle")"
     echo "Scoring $gametitle.."
-    if ! toml-get -f game-scores.toml "$gametitle.identifiers" >/dev/null 2>&1; then
-        identifier="$(search "$gametitle" | head -n 1 | cut -d"$tab" -f1)"
+    if ! tomlq -f game-scores.toml "$gametitle.identifiers" >/dev/null 2>&1; then
+        identifier="$(search "$gametitle" | cut -d"$tab" -f1)"
         set-score-info "$gametitle" "$identifier" >&2 || break
         identifiers="$identifier"
     else
-        identifiers="$(toml-get-array-lines -f game-scores.toml "$gametitle.identifiers" | tr '\n' ' ')"
+        identifiers="$(tomlq -f game-scores.toml "$gametitle" | toml-get-array-lines identifiers | tr '\n' ' ')"
     fi
     for identifier in $identifiers; do
         if [ -n "$identifier" ]; then
             method="${identifier%:*}"
             identifier="${identifier#*:}"
-            title="$(toml-get -f scoring.toml "$method.games.$identifier.title")"
-            scores="$(toml-get-array-lines -f scoring.toml "$method.games.$identifier.scores" | tr '\n' '\t')"
+            title="$(tomlq -f scoring.toml "$method.games.$identifier.title")"
+            scores="$(tomlq -f scoring.toml "$method.games.$identifier" | toml-get-array-lines scores | tr '\n' '\t')"
             printf '%s\t%s\t%s\n' "$gametitle" "$title" "$scores"
         fi
     done

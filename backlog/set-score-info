@@ -8,7 +8,6 @@ gametitle="$(title_sanitize "$1")"
 shift
 
 tomlfile="game-scores.toml"
-toml-set-string-array -f "$tomlfile" "$gametitle.scores" ""
 toml-set-string-array -f "$tomlfile" "$gametitle.identifiers" "$@"
 for identifier; do
     if [ -z "$identifier" ]; then
@@ -16,12 +15,12 @@ for identifier; do
     fi
     method="${identifier%:*}"
     identifier="${identifier#*:}"
-    if [ $(toml-get-array-lines -f scoring.toml "$method.games.$identifier.scores" | wc -l) -ne 0 ]; then
-        title="$(toml-get -f scoring.toml "$method.games.$identifier.title")"
-        scores="$(toml-get-array-lines -f scoring.toml "$method.games.$identifier.scores" | tr '\n' '\t')"
+    scores="$(tomlq -f scoring.toml "$method.games.$identifier" | toml-get-array-lines scores | tr '\n' '\t')"
+    if [ -n "$scores" ]; then
+        title="$(tomlq -f scoring.toml "$method.games.$identifier.title")"
         printf '%s\t%s\t%s\t%s\n' "$gametitle" "$method" "$title" "$scores"
         toml-set-string-array -f "$tomlfile" "$gametitle.scores" $scores
-        break
+        exit 0
     fi
 done
-exit 0
+toml-set-string-array -f "$tomlfile" "$gametitle.scores" ""
