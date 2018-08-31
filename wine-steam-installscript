@@ -29,8 +29,10 @@ from pprint import pprint
 MAX_FOLDERS = 10
 MAX_PROCS = 10
 WIN_USERNAME = 'steamuser'
-# DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
-DEFAULT_BLACKLIST = 'directx|dxsetup'
+# directx is rarely a good idea, vcredists usually aren't needed, and when
+# they are, they should be winetricks, and dotnet needs winetricks also
+# TODO: consider automatically using winetricks in the dotnet case
+DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc|dotnet'
 
 
 class CaseInsensitiveDict(collections.OrderedDict):
