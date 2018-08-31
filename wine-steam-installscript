@@ -20,6 +20,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import vdf
 from pathlib import Path
 from pprint import pprint
@@ -28,7 +29,8 @@ from pprint import pprint
 MAX_FOLDERS = 10
 MAX_PROCS = 10
 WIN_USERNAME = 'steamuser'
-DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+# DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+DEFAULT_BLACKLIST = 'directx|dxsetup'
 
 
 class CaseInsensitiveDict(collections.OrderedDict):
@@ -88,11 +90,11 @@ def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
         installdir = installdir.resolve(strict=True)
         vdffiles = [installdir / script.replace('\\\\', '/') for script in scripts]
 
-    proc = wine(['winepath', '-w', str(installdir)], stdout=subprocess.PIPE, check=True)
+    proc = wine(['winepath', '-w', str(installdir)])
     winstalldir = proc.stdout.decode('utf-8').strip()
 
     shellfolders = 'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders'
-    proc = wine(['reg', 'query', shellfolders, '/v', 'Personal', '/f'], stdout=subprocess.PIPE, check=True)
+    proc = wine(['reg', 'query', shellfolders, '/v', 'Personal', '/f'])
     querylines = proc.stdout.decode('utf-8').splitlines()[2:]
     docs = querylines[0].lstrip().split(maxsplit=2)[2]
 
@@ -109,6 +111,8 @@ def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
 
         if not vdffile.exists():
             sys.exit(f'Install script {vdffile} does not exist')
+
+        click.echo(f'Processing install script {vdffile}')
 
         with open(vdffile, 'r') as f:
             parsed = vdf.load(f, mapper=CaseInsensitiveDict)
@@ -130,18 +134,47 @@ def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
             copyfolders(cf, installdir, context)
 
 
+class WineError(Exception):
+    def __init__(self, cmd, error):
+        self.cmd = cmd
+        self.error = error
+        super().__init__()
+
+    def __str__(self):
+        if isinstance(self.error, subprocess.CalledProcessError):
+            if not self.error.stderr or not self.error.returncode or self.error.returncode < 0:
+                return str(self.error)
+            else:
+                return "Wine command '%s' returned non-zero exit status %d:\n%s" % (
+                        self.cmd, self.error.returncode, self.error.stderr)
+        else:
+            return "Wine command '%s' failed: %s" % (self.cmd, self.error)
+
+
 def wine(cmd, **kwargs):
     if isinstance(cmd, str):
-        cmd = 'wine ' + cmd
-    else:
-        cmd = ['wine'] + cmd
+        cmd = shlex.split(cmd)
 
+    stderr = tempfile.TemporaryFile()
+    if 'stderr' not in kwargs:
+        kwargs['stderr'] = stderr
+    if 'stdout' not in kwargs:
+        kwargs['stdout'] = subprocess.PIPE
     if 'stdin' not in kwargs:
-        kwargs['stdin'] = subprocess.DEVNULL
+        kwargs['stdin'] = subprocess.PIPE
     if 'check' not in kwargs:
         kwargs['check'] = True
+    if 'close_fds' not in kwargs:
+        kwargs['close_fds'] = True
 
-    return subprocess.run(cmd, **kwargs)
+    strcmd = subprocess.list2cmdline(cmd)
+    # click.echo(f'Running wine command: {strcmd}')
+    try:
+        return subprocess.run(['wine'] + cmd, **kwargs)
+    except subprocess.CalledProcessError as exc:
+        stderr.seek(0)
+        exc.stderr = stderr.read().decode('utf-8')
+        raise WineError(strcmd, exc) from exc
 
 
 def _addreg(rtype, ekey, value_name, data, context):
@@ -154,7 +187,7 @@ def _addreg(rtype, ekey, value_name, data, context):
         for c, v in context.items():
             data = data.replace(f'%{c}%', v)
         click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
-        wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False)
         wine(['reg', 'add', ekey, '/v', value_name, '/t', rtype, '/d', data, '/f'])
 
 
@@ -190,9 +223,9 @@ def copyfolders(reg, installdir, context):
                 break
             dest = entry.escaped_get(f'DstFolder {i}', context)
             if dest:
-                proc = wine(['winepath', src], stdout=subprocess.PIPE)
+                proc = wine(['winepath', src])
                 src = Path(proc.stdout.decode('utf-8').rstrip())
-                proc = wine(['winepath', dest], stdout=subprocess.PIPE)
+                proc = wine(['winepath', dest])
                 dest = Path(proc.stdout.decode('utf-8').rstrip())
                 if src.exists() and not dest.exists():
                     click.echo(f'Copying folder from {src} to {dest}')
@@ -218,7 +251,7 @@ def runprocess(rp, installdir, context, blacklist):
 
         hasrunkey = entry.escaped_get('hasrunkey', context)
         if hasrunkey:
-            proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False)
             if proc.returncode == 0:
                 run = False
             if blacklist and re.search(blacklist, hasrunkey):
@@ -281,6 +314,9 @@ if __name__ == '__main__':
     try:
         click.echo('Running scripts')
         run_cmd_main(vdf_run_installscripts)
+    except WineError as exc:
+        sys.stderr.write(str(exc) + '\n')
+        sys.exit(1)
     finally:
         click.echo('Cleaning up wineserver')
         subprocess.run(['wineserver', '-k'])
