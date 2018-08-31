@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+# NOTE: As we're running outside of steam, it's not possible to substitute
+# %CDKEY% in any registry entries, so the user may have to set those manually
+# after retrieving their cd keys from Steam. Dead Space 2 is an example.
+#
+# TODO: consider an automatic remap from redist to winetricks
+# TODO: flesh out possible registry entry type values
+# TODO for Proton.app: handle the script python module dep on click
+# TODO for Proton.app: move the steam library into drive_c to avoid hardcoding
+# host paths in drive_z in the registry
+# TODO: clean up the wine execution output on stderr, suppressing it until/if
+# there's a failure, by default
+# TODO: make sure we check for failure on all of the wine executions
+
+import click
+import collections
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import vdf
+from pathlib import Path
+from pprint import pprint
+
+
+MAX_FOLDERS = 10
+MAX_PROCS = 10
+WIN_USERNAME = 'steamuser'
+DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+
+
+class CaseInsensitiveDict(collections.OrderedDict):
+    """Dict with tweaks for vdf usage."""
+
+    def iget(self, key, default=None):
+        """Return a value for the key, ignoring case. Uses the first match."""
+        if isinstance(key, str):
+            for k in self:
+                if isinstance(k, str) and k.lower() == key.lower():
+                    return self.get(k, default)
+        return self.get(key, default)
+
+    def expanded_get(self, key, context, default=None):
+        """Return a value for the key, expanding special values."""
+        if isinstance(key, str):
+            for k in self:
+                if isinstance(k, str) and k.lower() == key.lower():
+                    key = k
+        value = self.get(key, default)
+        if isinstance(value, str):
+            for ck in context:
+                if f'{ck}' in value:
+                    value = value.replace(f'%{ck}%', context[ck])
+        return value
+
+    def escaped_get(self, key, context, default=None):
+        value = self.expanded_get(key, context, default)
+        if isinstance(value, str):
+            value = value.replace('\\\\', '\\')
+            value = value.replace('\\"', '"')
+        return value
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-b', '--blacklist', help='Regex for processes to exclude from execution. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_BLACKLIST)
+@click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
+@click.argument('appmanifest', nargs=1, required=True)
+def vdf_run_installscripts(appmanifest, blacklist, use_installdir):
+    if blacklist:
+        blacklist = re.compile(blacklist, re.IGNORECASE)
+
+    appmanifest = Path(appmanifest).resolve(strict=True)
+    if use_installdir:
+        installdir = appmanifest
+        vdffiles = installdir.rglob('*.vdf')
+    else:
+        with open(appmanifest, 'r') as f:
+            parsed = vdf.load(f, mapper=CaseInsensitiveDict)
+
+        appstate = parsed.iget('appstate')
+        scripts = appstate.iget('installscripts')
+        if not scripts:
+            return
+
+        installdir = appmanifest.parent / 'common'/ appstate.iget('installdir')
+        installdir = installdir.resolve(strict=True)
+        vdffiles = [installdir / script.replace('\\\\', '/') for script in scripts]
+
+    proc = wine(['winepath', '-w', str(installdir)], stdout=subprocess.PIPE, check=True)
+    winstalldir = proc.stdout.decode('utf-8').strip()
+
+    shellfolders = 'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders'
+    proc = wine(['reg', 'query', shellfolders, '/v', 'Personal', '/f'], stdout=subprocess.PIPE, check=True)
+    querylines = proc.stdout.decode('utf-8').splitlines()[2:]
+    docs = querylines[0].lstrip().split(maxsplit=2)[2]
+
+    context = {
+        'INSTALLDIR': winstalldir,
+        'USER_MYDOCS': docs.replace('\\\\', '\\'),
+        'windir': 'c:\\windows',
+    }
+
+    for vdffile in vdffiles:
+        if blacklist and re.search(blacklist, str(vdffile)):
+            click.echo(f'Skipping blacklisted installscript by path: {vdffile}')
+            continue
+
+        if not vdffile.exists():
+            sys.exit(f'Install script {vdffile} does not exist')
+
+        with open(vdffile, 'r') as f:
+            parsed = vdf.load(f, mapper=CaseInsensitiveDict)
+
+        inst = parsed.iget('installscript')
+        if not inst:
+            continue
+
+        rp = inst.iget('run process')
+        if rp:
+            runprocess(rp, installdir, context, blacklist)
+
+        reg = inst.iget('registry')
+        if reg:
+            registry(reg, installdir, context)
+
+        cf = inst.iget('copy folders')
+        if cf:
+            copyfolders(cf, installdir, context)
+
+
+def wine(cmd, **kwargs):
+    if isinstance(cmd, str):
+        cmd = 'wine ' + cmd
+    else:
+        cmd = ['wine'] + cmd
+
+    if 'stdin' not in kwargs:
+        kwargs['stdin'] = subprocess.DEVNULL
+    if 'check' not in kwargs:
+        kwargs['check'] = True
+
+    return subprocess.run(cmd, **kwargs)
+
+
+def _addreg(rtype, ekey, value_name, data, context):
+    if isinstance(data, dict):
+        click.echo(f'Adding registry key {ekey}\\{value_name}')
+        wine(['reg', 'add', ekey + '\\' + value_name, '/f'])
+        for key, value in data.items():
+            _addreg(rtype, ekey + '\\' + value_name, key, value, context)
+    else:
+        for c, v in context.items():
+            data = data.replace(f'%{c}%', v)
+        click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
+        wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        wine(['reg', 'add', ekey, '/v', value_name, '/t', rtype, '/d', data, '/f'])
+
+
+def registry(reg, installdir, context):
+    for key, entry in reg.items():
+        ekey = key.replace('\\\\', '\\')
+        click.echo(f'Adding registry key {ekey}')
+        wine(['reg', 'add', ekey, '/f'])
+        for rtype, values in entry.items():
+            if isinstance(values, dict):
+                rtype = rtype.upper()
+                if rtype == 'STRING':
+                    rtype = 'REG_SZ'
+                elif rtype == 'DWORD':
+                    rtype = 'REG_DWORD'
+                elif rtype.startswith('REG_'):
+                    pass
+                else:
+                    click.echo(f'Unrecognized registry entry type in vdf: {rtype}')
+                    sys.exit(1)
+                for value_name, data in values.items():
+                    _addreg(rtype, ekey, value_name, data, context)
+            else:
+                # No type dict, default to a string
+                _addreg('REG_SZ', ekey, rtype, values, context)
+
+
+def copyfolders(reg, installdir, context):
+    for name, entry in reg.items():
+        for i in range(1, MAX_FOLDERS):
+            src = entry.escaped_get(f'SrcFolder {i}', context)
+            if not src:
+                break
+            dest = entry.escaped_get(f'DstFolder {i}', context)
+            if dest:
+                proc = wine(['winepath', src], stdout=subprocess.PIPE)
+                src = Path(proc.stdout.decode('utf-8').rstrip())
+                proc = wine(['winepath', dest], stdout=subprocess.PIPE)
+                dest = Path(proc.stdout.decode('utf-8').rstrip())
+                if src.exists() and not dest.exists():
+                    click.echo(f'Copying folder from {src} to {dest}')
+                    os.makedirs(dest.resolve().parent)
+                    shutil.copytree(src, dest, symlinks=True)
+
+
+def runprocess(rp, installdir, context, blacklist):
+    for key, entry in rp.items():
+        run = True
+        nocleanup = entry.escaped_get('nocleanup', context)
+        osreq = entry.escaped_get('requirement_os', context)
+        if osreq:
+            prefix = Path(os.getenv('WINEPREFIX', Path.home() / '.wine'))
+            syswow64 = prefix / 'drive_c' / 'windows' / 'syswow64'
+            is64 = osreq.iget('is64bitwindows')
+            if is64 == '1' and not syswow64.exists():
+                click.echo(f'Skipping run process for {key}: requires 64-bit windows')
+                continue
+            elif is64 == '0' and syswow64.exists():
+                click.echo(f'Skipping run process for {key}: requires 32-bit windows')
+                continue
+
+        hasrunkey = entry.escaped_get('hasrunkey', context)
+        if hasrunkey:
+            proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if proc.returncode == 0:
+                run = False
+            if blacklist and re.search(blacklist, hasrunkey):
+                click.echo(f'Skipping blacklisted runprocess {key} for {hasrunkey}')
+                continue
+
+        if blacklist and re.search(blacklist, key):
+            click.echo(f'Skipping blacklisted runprocess {key}')
+            continue
+
+        if run:
+            cmds = []
+            for i in range(1, MAX_PROCS):
+                process = entry.escaped_get(f'process {i}', context)
+                command = entry.escaped_get(f'command {i}', context)
+                if not process or not command:
+                    break
+
+                if blacklist and re.search(blacklist, process):
+                    click.echo(f'Skipping blacklisted runprocess {key}')
+                    continue
+
+                click.echo(f'Running process {key}: {process} {command}')
+                cmd = [process] + shlex.split(command)
+                try:
+                    wine(cmd)
+                except subprocess.CalledProcessError:
+                    ignoreexitcode = entry.iget('ignoreexitcode')
+                    if ignoreexitcode != '1':
+                        sys.exit(f'Failed to run wine {process} {command}')
+
+            if hasrunkey:
+                wine(['reg', 'delete', hasrunkey, '/v', key, '/f'], check=False)
+                wine(['reg', 'add', hasrunkey, '/v', key, '/t', 'REG_DWORD', '/d', '1', '/f'])
+
+
+def run_cmd_main(cmd):
+    """Run the click command, showing help rather than usage for an error."""
+    try:
+        cmd(standalone_mode=False)
+    except click.Abort:
+        click.echo('Aborted!', file=sys.stderr)
+        sys.exit(1)
+    except click.UsageError as exc:
+        color = None
+        if exc.ctx:
+            color = exc.ctx.color
+            click.echo(exc.ctx.get_help() + '\n', file=sys.stderr, color=color)
+        click.echo('Error: %s' % exc.format_message(), file=sys.stderr,
+                   color=color)
+        sys.exit(exc.exit_code)
+    except click.ClickException as exc:
+        exc.show()
+        sys.exit(exc.exit_code)
+
+
+if __name__ == '__main__':
+    click.echo('Starting wineserver')
+    subprocess.run(['wineserver', '-p'])
+    try:
+        click.echo('Running scripts')
+        run_cmd_main(vdf_run_installscripts)
+    finally:
+        click.echo('Cleaning up wineserver')
+        subprocess.run(['wineserver', '-k'])
+        subprocess.run(['wineserver', '-w'])
