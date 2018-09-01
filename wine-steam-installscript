@@ -27,14 +27,13 @@ from pprint import pprint
 
 MAX_FOLDERS = 10
 MAX_PROCS = 10
-WIN_USERNAME = 'steamuser'
 # directx is rarely a good idea, vcredists usually aren't needed, and when
-# they are, they should be winetricks, and dotnet needs winetricks also
-DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[0235])|msvc'
+# they are, they should be winetricks, and dotnet needs winetricks
+DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
 DEFAULT_WINETRICKS_MAP = 'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
-class CaseInsensitiveDict(collections.OrderedDict):
+class VDFDict(collections.OrderedDict):
     """Dict with tweaks for vdf usage."""
 
     def iget(self, key, default=None):
@@ -66,6 +65,23 @@ class CaseInsensitiveDict(collections.OrderedDict):
         return value
 
 
+class WineError(Exception):
+    def __init__(self, cmd, error):
+        self.cmd = cmd
+        self.error = error
+        super().__init__()
+
+    def __str__(self):
+        if isinstance(self.error, subprocess.CalledProcessError):
+            if not self.error.stderr or not self.error.returncode or self.error.returncode < 0:
+                return str(self.error)
+            else:
+                return "Wine command '%s' returned non-zero exit status %d:\n%s" % (
+                        self.cmd, self.error.returncode, self.error.stderr)
+        else:
+            return "Wine command '%s' failed: %s" % (self.cmd, self.error)
+
+
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('-b', '--blacklist', help='Regex for processes to exclude from execution. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_BLACKLIST)
 @click.option('-t', '--tricks', help='Map of regex patterns to winetricks to install. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_WINETRICKS_MAP)
@@ -83,7 +99,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         vdffiles = installdir.rglob('*.vdf')
     else:
         with open(appmanifest, 'r') as f:
-            parsed = vdf.load(f, mapper=CaseInsensitiveDict)
+            parsed = vdf.load(f, mapper=VDFDict)
 
         appstate = parsed.iget('appstate')
         scripts = appstate.iget('installscripts')
@@ -119,7 +135,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         click.echo(f'Processing install script {vdffile}')
 
         with open(vdffile, 'r') as f:
-            parsed = vdf.load(f, mapper=CaseInsensitiveDict)
+            parsed = vdf.load(f, mapper=VDFDict)
 
         inst = parsed.iget('installscript')
         if not inst:
@@ -136,23 +152,6 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         cf = inst.iget('copy folders')
         if cf:
             copyfolders(cf, installdir, context)
-
-
-class WineError(Exception):
-    def __init__(self, cmd, error):
-        self.cmd = cmd
-        self.error = error
-        super().__init__()
-
-    def __str__(self):
-        if isinstance(self.error, subprocess.CalledProcessError):
-            if not self.error.stderr or not self.error.returncode or self.error.returncode < 0:
-                return str(self.error)
-            else:
-                return "Wine command '%s' returned non-zero exit status %d:\n%s" % (
-                        self.cmd, self.error.returncode, self.error.stderr)
-        else:
-            return "Wine command '%s' failed: %s" % (self.cmd, self.error)
 
 
 def wine(cmd, **kwargs):
@@ -181,20 +180,6 @@ def wine(cmd, **kwargs):
         raise WineError(strcmd, exc) from exc
 
 
-def _addreg(rtype, ekey, value_name, data, context):
-    if isinstance(data, dict):
-        click.echo(f'Adding registry key {ekey}\\{value_name}')
-        wine(['reg', 'add', ekey + '\\' + value_name, '/f'])
-        for key, value in data.items():
-            _addreg(rtype, ekey + '\\' + value_name, key, value, context)
-    else:
-        for c, v in context.items():
-            data = data.replace(f'%{c}%', v)
-        click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
-        wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False)
-        wine(['reg', 'add', ekey, '/v', value_name, '/t', rtype, '/d', data, '/f'])
-
-
 def registry(reg, installdir, context):
     for key, entry in reg.items():
         ekey = key.replace('\\\\', '\\')
@@ -217,6 +202,20 @@ def registry(reg, installdir, context):
             else:
                 # No type dict, default to a string
                 _addreg('REG_SZ', ekey, rtype, values, context)
+
+
+def _addreg(rtype, ekey, value_name, data, context):
+    if isinstance(data, dict):
+        click.echo(f'Adding registry key {ekey}\\{value_name}')
+        wine(['reg', 'add', ekey + '\\' + value_name, '/f'])
+        for key, value in data.items():
+            _addreg(rtype, ekey + '\\' + value_name, key, value, context)
+    else:
+        for c, v in context.items():
+            data = data.replace(f'%{c}%', v)
+        click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
+        wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False)
+        wine(['reg', 'add', ekey, '/v', value_name, '/t', rtype, '/d', data, '/f'])
 
 
 def copyfolders(reg, installdir, context):
