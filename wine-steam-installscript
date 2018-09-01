@@ -21,7 +21,7 @@ MAX_FOLDERS = 10
 MAX_PROCS = 10
 # directx is rarely a good idea, vcredists usually aren't needed, and when
 # they are, they should be winetricks, and dotnet needs winetricks
-DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc'
 DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
@@ -85,6 +85,8 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     if tricks:
         tricks = dict(((re.compile(r, re.IGNORECASE), t.split())
                        for r, t in (entry.split(':') for entry in tricks.split(';'))))
+    else:
+        tricks = {}
 
     appmanifest = Path(appmanifest).resolve(strict=True)
     if use_installdir:
@@ -243,6 +245,10 @@ def copyfolders(reg, installdir, context):
 
 
 def runprocess(rp, installdir, context, blacklist, tricks):
+    if isinstance(next(iter(rp))[1], str):
+        # Run Process is a single entry, not multiple
+        rp = VDFDict({'Run Process': rp})
+
     for key, entry in rp.items():
         nocleanup = entry.escaped_get('nocleanup', context)
         osreq = entry.escaped_get('requirement_os', context)
@@ -282,7 +288,8 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                 command = entry.escaped_get(f'command {i}', context)
 
                 if blacklist and blacklist.search(process):
-                    click.echo(f'Skipping blacklisted runprocess {key}')
+                    click.echo(
+                        f'Skipping blacklisted runprocess {key} for {process}')
                     continue
 
                 for regex, winetricks in tricks.items():
