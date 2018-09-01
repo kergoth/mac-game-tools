@@ -24,7 +24,7 @@ MAX_FOLDERS = 10
 MAX_PROCS = 10
 # directx is rarely a good idea, vcredists usually aren't needed, and when
 # they are, they should be winetricks, and dotnet needs winetricks
-DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc'
+DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc|amdcpu'
 DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 WINETRICKS_BROKEN_64 = 'dotnet35'
 
