@@ -1,72 +1,68 @@
-#!/usr/bin/env python
-from __future__ import print_function
+"""
+Module for deserializing/serializing to and from VDF
+"""
+__version__ = "2.3"
+__author__ = "Rossen Georgiev"
 
-# a simple parser for Valve's KeyValue format
-# https://developer.valvesoftware.com/wiki/KeyValues
-#
-# author: Rossen Popov, 2014
-#
-# use at your own risk
-
-__version__ = "1.6"
-
-import codecs
 import re
 import sys
+import struct
+from binascii import crc32
+from io import StringIO as unicodeIO
+from vdf.vdict import VDFDict
 
-# Py2 & Py3 compability
+# Py2 & Py3 compatibility
 if sys.version_info[0] >= 3:
     string_type = str
-    next_method_name = '__next__'
+    int_type = int
     BOMS = '\ufffe\ufeff'
-    BOMS = codecs.BOM_UTF16_LE
 
     def strip_bom(line):
         return line.lstrip(BOMS)
 else:
+    from StringIO import StringIO as strIO
     string_type = basestring
-    next_method_name = 'next'
+    int_type = long
     BOMS = '\xef\xbb\xbf\xff\xfe\xfe\xff'
     BOMS_UNICODE = '\\ufffe\\ufeff'.decode('unicode-escape')
 
     def strip_bom(line):
         return line.lstrip(BOMS if isinstance(line, str) else BOMS_UNICODE)
 
-###############################################
-#
-# Takes a file or str and returns dict
-#
-# Function assumes valid VDF as input.
-# Invalid VDF will result in unexpected output
-#
-###############################################
 
+def parse(fp, mapper=dict, merge_duplicate_keys=True):
+    """
+    Deserialize ``s`` (a ``str`` or ``unicode`` instance containing a VDF)
+    to a Python object.
 
-def parse(source, mapper=dict):
+    ``mapper`` specifies the Python object used after deserializetion. ``dict` is
+    used by default. Alternatively, ``collections.OrderedDict`` can be used if you
+    wish to preserve key order. Or any object that acts like a ``dict``.
+
+    ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
+    same key into one instead of overwriting. You can se this to ``False`` if you are
+    using ``VDFDict`` and need to preserve the duplicates.
+    """
     if not issubclass(mapper, dict):
         raise TypeError("Expected mapper to be subclass of dict, got %s", type(mapper))
-    if hasattr(source, 'readlines'):
-        lines = source.readlines()
-    elif isinstance(source, string_type):
-        lines = source.split('\n')
-    else:
-        raise TypeError("Expected source to be str or have readlines() method")
+    if not hasattr(fp, 'readline'):
+        raise TypeError("Expected fp to be a file-like object supporting line iteration")
 
-    # strip annoying BOMS
-    lines[0] = strip_bom(lines[0])
-
-    # init
-    obj = mapper()
-    stack = [obj]
+    stack = [mapper()]
     expect_bracket = False
 
-    re_keyvalue = re.compile(r'^"((?:\\.|[^\\"])*)"[ \t]*"((?:\\.|[^\\"])*)(")?')
-    re_key = re.compile(r'^"((?:\\.|[^\\"])*)"')
+    re_keyvalue = re.compile(r'^("(?P<qkey>(?:\\.|[^\\"])+)"|(?P<key>#?[a-z0-9\-\_]+))'
+                             r'([ \t]*('
+                             r'"(?P<qval>(?:\\.|[^\\"])*)(?P<vq_end>")?'
+                             r'|(?P<val>[a-z0-9\-\_\*\.]+)'
+                             r'))?',
+                             flags=re.I)
 
-    itr = iter(lines)
+    for idx, line in enumerate(fp):
+        if idx == 0:
+            line = strip_bom(line)
 
-    for line in itr:
-        line = line.strip()
+        line = line.lstrip()
 
         # skip empty and comment lines
         if line == "" or line[0] == '/':
@@ -78,7 +74,7 @@ def parse(source, mapper=dict):
             continue
 
         if expect_bracket:
-            raise SyntaxError("vdf.parse: invalid syntax")
+            raise SyntaxError("vdf.parse: expected openning bracket (line %d)" % (idx + 1))
 
         # one level back
         if line[0] == "}":
@@ -86,71 +82,107 @@ def parse(source, mapper=dict):
                 stack.pop()
                 continue
 
-            raise SyntaxError("vdf.parse: one too many closing parenthasis")
+            raise SyntaxError("vdf.parse: one too many closing parenthasis (line %d)" % (idx + 1))
 
         # parse keyvalue pairs
-        if line[0] == '"':
-            while True:
-                m = re_keyvalue.match(line)
+        while True:
+            match = re_keyvalue.match(line)
 
-                # we've matched a simple keyvalue pair, map it to the last dict obj in the stack
-                if m:
-                    # if the value is line consume one more line and try to match again,
-                    # until we get the KeyValue pair
-                    if m.group(3) is None:
-                        line += "\n" + getattr(itr, next_method_name)()
-                        continue
+            if not match:
+                try:
+                    line += next(fp)
+                    continue
+                except StopIteration:
+                    raise SyntaxError("vdf.parse: unexpected EOF (open key quote?)")
 
-                    stack[-1][m.group(1)] = m.group(2)
+            key = match.group('key') if match.group('qkey') is None else match.group('qkey')
+            val = match.group('val') if match.group('qval') is None else match.group('qval')
 
-                # we have a key with value in parenthesis, so we make a new dict obj (level deeper)
+            # we have a key with value in parenthesis, so we make a new dict obj (level deeper)
+            if val is None:
+                if merge_duplicate_keys and key in stack[-1]:
+                    _m = stack[-1][key]
                 else:
-                    m = re_key.match(line)
+                    _m = mapper()
+                    stack[-1][key] = _m
 
-                    if not m:
-                        raise SyntaxError("vdf.parse: invalid syntax")
+                stack.append(_m)
+                expect_bracket = True
 
-                    key = m.group(1)
+            # we've matched a simple keyvalue pair, map it to the last dict obj in the stack
+            else:
+                # if the value is line consume one more line and try to match again,
+                # until we get the KeyValue pair
+                if match.group('vq_end') is None and match.group('qval') is not None:
+                    try:
+                        line += next(fp)
+                        continue
+                    except StopIteration:
+                        raise SyntaxError("vdf.parse: unexpected EOF (open value quote?)")
 
-                    stack[-1][key] = mapper()
-                    stack.append(stack[-1][key])
-                    expect_bracket = True
+                stack[-1][key] = val
 
-                # exit the loop
-                break
+            # exit the loop
+            break
 
     if len(stack) != 1:
-        raise SyntaxError("vdf.parse: unclosed parenthasis or quotes")
+        raise SyntaxError("vdf.parse: unclosed parenthasis or quotes (EOF)")
 
-    return obj
+    return stack.pop()
 
 
-def loads(fp, **kwargs):
-    assert isinstance(fp, string_type), "Expected a str"
+def loads(s, **kwargs):
+    """
+    Deserialize ``s`` (a ``str`` or ``unicode`` instance containing a JSON
+    document) to a Python object.
+    """
+    if not isinstance(s, string_type):
+        raise TypeError("Expected s to be a str, got %s", type(s))
+
+    try:
+        fp = unicodeIO(s)
+    except TypeError:
+        fp = strIO(s)
+
     return parse(fp, **kwargs)
 
 
 def load(fp, **kwargs):
-    assert hasattr(fp, 'readlines'), "Expected fp to have readlines() method"
+    """
+    Deserialize ``fp`` (a ``.readline()``-supporting file-like object containing
+    a JSON document) to a Python object.
+    """
     return parse(fp, **kwargs)
 
-###############################################
-#
-# Take a dict, reuturns VDF in str buffer
-#
-# dump(dict(), pretty=True) for indented VDF
-#
-###############################################
 
-
-def dumps(data, pretty=False, level=0):
-    if not isinstance(data, dict):
-        raise TypeError("Expected data to be a dict or subclass of dict")
+def dumps(obj, pretty=False):
+    """
+    Serialize ``obj`` to a VDF formatted ``str``.
+    """
+    if not isinstance(obj, dict):
+        raise TypeError("Expected data to be an instance of``dict``")
     if not isinstance(pretty, bool):
         raise TypeError("Expected pretty to be bool")
 
+    return ''.join(_dump_gen(obj, pretty))
+
+
+def dump(obj, fp, pretty=False):
+    """
+    Serialize ``obj`` as a VDF formatted stream to ``fp`` (a
+    ``.write()``-supporting file-like object).
+    """
+    if not isinstance(obj, dict):
+        raise TypeError("Expected data to be an instance of``dict``")
+    if not hasattr(fp, 'write'):
+        raise TypeError("Expected fp to have write() method")
+
+    for chunk in _dump_gen(obj, pretty):
+        fp.write(chunk)
+
+
+def _dump_gen(data, pretty=False, level=0):
     indent = "\t"
-    buf = ""
     line_indent = ""
 
     if pretty:
@@ -158,19 +190,212 @@ def dumps(data, pretty=False, level=0):
 
     for key, value in data.items():
         if isinstance(value, dict):
-            buf += '%s"%s"\n%s{\n%s%s}\n' % (
-                line_indent, key, line_indent, dumps(value, pretty, level+1), line_indent
-            )
+            yield '%s"%s"\n%s{\n' % (line_indent, key, line_indent)
+            for chunk in _dump_gen(value, pretty, level+1):
+                yield chunk
+            yield "%s}\n" % line_indent
         else:
-            buf += '%s"%s" "%s"\n' % (line_indent, key, value)
-
-    return buf
+            yield '%s"%s" "%s"\n' % (line_indent, key, value)
 
 
-def dump(data, fp, pretty=False):
-    if not isinstance(data, dict):
-        raise TypeError("Expected data to be a dict")
-    if not hasattr(fp, 'write'):
-        raise TypeError("Expected fp to have write() method")
+class BASE_INT(int_type):
+    def __repr__(self):
+        return "%s(%d)" % (self.__class__.__name__, self)
 
-    fp.write(dumps(data, pretty))
+class UINT_64(BASE_INT):
+    pass
+
+class INT_64(BASE_INT):
+    pass
+
+class POINTER(BASE_INT):
+    pass
+
+class COLOR(BASE_INT):
+    pass
+
+BIN_NONE        = b'\x00'
+BIN_STRING      = b'\x01'
+BIN_INT32       = b'\x02'
+BIN_FLOAT32     = b'\x03'
+BIN_POINTER     = b'\x04'
+BIN_WIDESTRING  = b'\x05'
+BIN_COLOR       = b'\x06'
+BIN_UINT64      = b'\x07'
+BIN_END         = b'\x08'
+BIN_INT64       = b'\x0A'
+BIN_END_ALT     = b'\x0B'
+
+def binary_loads(s, mapper=dict, merge_duplicate_keys=True, alt_format=False):
+    """
+    Deserialize ``s`` (``bytes`` containing a VDF in "binary form")
+    to a Python object.
+
+    ``mapper`` specifies the Python object used after deserializetion. ``dict` is
+    used by default. Alternatively, ``collections.OrderedDict`` can be used if you
+    wish to preserve key order. Or any object that acts like a ``dict``.
+
+    ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
+    same key into one instead of overwriting. You can se this to ``False`` if you are
+    using ``VDFDict`` and need to preserve the duplicates.
+    """
+    if not isinstance(s, bytes):
+        raise TypeError("Expected s to be bytes, got %s", type(s))
+    if not issubclass(mapper, dict):
+        raise TypeError("Expected mapper to be subclass of dict, got %s", type(mapper))
+
+    # helpers
+    int32 = struct.Struct('<i')
+    uint64 = struct.Struct('<Q')
+    int64 = struct.Struct('<q')
+    float32 = struct.Struct('<f')
+
+    def read_string(s, idx, wide=False):
+        end = s.find(b'\x00\x00' if wide else b'\x00', idx)
+        if end == -1:
+            raise SyntaxError("Unterminated cstring, index: %d" % idx)
+        result = s[idx:end]
+        if wide:
+            result = result.decode('utf-16')
+        elif bytes is not str:
+            result = result.decode('ascii')
+        return result, end + (2 if wide else 1)
+
+    stack = [mapper()]
+    idx = 0
+    CURRENT_BIN_END = BIN_END if not alt_format else BIN_END_ALT
+
+    while len(s) > idx:
+        t = s[idx:idx+1]
+        idx += 1
+
+        if t == CURRENT_BIN_END:
+            if len(stack) > 1:
+                stack.pop()
+                continue
+            break
+
+        key, idx = read_string(s, idx)
+
+        if t == BIN_NONE:
+            if merge_duplicate_keys and key in stack[-1]:
+                _m = stack[-1][key]
+            else:
+                _m = mapper()
+                stack[-1][key] = _m
+            stack.append(_m)
+        elif t == BIN_STRING:
+            stack[-1][key], idx = read_string(s, idx)
+        elif t == BIN_WIDESTRING:
+            stack[-1][key], idx = read_string(s, idx, wide=True)
+        elif t in (BIN_INT32, BIN_POINTER, BIN_COLOR):
+            val = int32.unpack_from(s, idx)[0]
+
+            if t == BIN_POINTER:
+                val = POINTER(val)
+            elif t == BIN_COLOR:
+                val = COLOR(val)
+
+            stack[-1][key] = val
+            idx += int32.size
+        elif t == BIN_UINT64:
+            stack[-1][key] = UINT_64(uint64.unpack_from(s, idx)[0])
+            idx += uint64.size
+        elif t == BIN_INT64:
+            stack[-1][key] = INT_64(int64.unpack_from(s, idx)[0])
+            idx += int64.size
+        elif t == BIN_FLOAT32:
+            stack[-1][key] = float32.unpack_from(s, idx)[0]
+            idx += float32.size
+        else:
+            raise SyntaxError("Unknown data type at index %d: %s" % (idx-1, repr(t)))
+
+    if len(s) != idx or len(stack) != 1:
+        raise SyntaxError("Binary VDF ended at index %d, but length is %d" % (idx, len(s)))
+
+    return stack.pop()
+
+def binary_dumps(obj, alt_format=False):
+    """
+    Serialize ``obj`` to a binary VDF formatted ``bytes``.
+    """
+    return b''.join(_binary_dump_gen(obj, alt_format=alt_format))
+
+def _binary_dump_gen(obj, level=0, alt_format=False):
+    if level == 0 and len(obj) == 0:
+        return
+
+    int32 = struct.Struct('<i')
+    uint64 = struct.Struct('<Q')
+    int64 = struct.Struct('<q')
+    float32 = struct.Struct('<f')
+
+    for key, value in obj.items():
+        if isinstance(key, string_type):
+            key = key.encode('ascii')
+        else:
+            raise TypeError("dict keys must be of type str, got %s" % type(key))
+
+        if isinstance(value, dict):
+            yield BIN_NONE + key + BIN_NONE
+            for chunk in _binary_dump_gen(value, level+1, alt_format=alt_format):
+                yield chunk
+        elif isinstance(value, UINT_64):
+            yield BIN_UINT64 + key + BIN_NONE + uint64.pack(value)
+        elif isinstance(value, INT_64):
+            yield BIN_INT64 + key + BIN_NONE + int64.pack(value)
+        elif isinstance(value, string_type):
+            try:
+                value = value.encode('ascii') + BIN_NONE
+                yield BIN_STRING
+            except:
+                value = value.encode('utf-16') + BIN_NONE*2
+                yield BIN_WIDESTRING
+            yield key + BIN_NONE + value
+        elif isinstance(value, float):
+            yield BIN_FLOAT32 + key + BIN_NONE + float32.pack(value)
+        elif isinstance(value, (COLOR, POINTER, int, int_type)):
+            if isinstance(value, COLOR):
+                yield BIN_COLOR
+            elif isinstance(value, POINTER):
+                yield BIN_POINTER
+            else:
+                yield BIN_INT32
+            yield key + BIN_NONE
+            yield int32.pack(value)
+        else:
+            raise TypeError("Unsupported type: %s" % type(value))
+
+    yield BIN_END if not alt_format else BIN_END_ALT
+
+
+def vbkv_loads(s, mapper=dict, merge_duplicate_keys=True):
+    """
+    Deserialize ``s`` (``bytes`` containing a VBKV to a Python object.
+
+    ``mapper`` specifies the Python object used after deserializetion. ``dict` is
+    used by default. Alternatively, ``collections.OrderedDict`` can be used if you
+    wish to preserve key order. Or any object that acts like a ``dict``.
+
+    ``merge_duplicate_keys`` when ``True`` will merge multiple KeyValue lists with the
+    same key into one instead of overwriting. You can se this to ``False`` if you are
+    using ``VDFDict`` and need to preserve the duplicates.
+    """
+    if s[:4] != b'VBKV':
+        raise ValueError("Invalid header")
+
+    checksum, = struct.unpack('<i', s[4:8])
+
+    if checksum != crc32(s[8:]):
+        raise ValueError("Invalid checksum")
+
+    return binary_loads(s[8:], mapper, merge_duplicate_keys, alt_format=True)
+
+def vbkv_dumps(obj):
+    """
+    Serialize ``obj`` to a VBKV formatted ``bytes``.
+    """
+    data =  b''.join(_binary_dump_gen(obj, alt_format=True))
+    checksum = crc32(data)
+
+    return b'VBKV' + struct.pack('<i', checksum) + data
