@@ -109,7 +109,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     }
 
     for vdffile in vdffiles:
-        if blacklist and re.search(blacklist, str(vdffile)):
+        if blacklist and blacklist.search(str(vdffile)):
             click.echo(f'Skipping blacklisted installscript by path: {vdffile}')
             continue
 
@@ -258,11 +258,11 @@ def runprocess(rp, installdir, context, blacklist, tricks):
             proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False)
             if proc.returncode == 0:
                 run = False
-            if blacklist and re.search(blacklist, hasrunkey):
+            if blacklist and blacklist.search(hasrunkey):
                 click.echo(f'Skipping blacklisted runprocess {key} for {hasrunkey}')
                 continue
 
-        if blacklist and re.search(blacklist, key):
+        if blacklist and blacklist.search(key):
             click.echo(f'Skipping blacklisted runprocess {key}')
             continue
 
@@ -271,11 +271,10 @@ def runprocess(rp, installdir, context, blacklist, tricks):
             for i in range(1, MAX_PROCS):
                 process = entry.escaped_get(f'process {i}', context)
                 if not process:
-                    print()
                     break
                 command = entry.escaped_get(f'command {i}', context)
 
-                if blacklist and re.search(blacklist, process):
+                if blacklist and blacklist.search(process):
                     click.echo(f'Skipping blacklisted runprocess {key}')
                     continue
 
