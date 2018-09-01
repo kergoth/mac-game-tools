@@ -65,7 +65,7 @@ class VDFDict(collections.OrderedDict):
         return value
 
 
-class WineError(Exception):
+class ProcessError(Exception):
     def __init__(self, cmd, error):
         self.cmd = cmd
         self.error = error
@@ -76,10 +76,10 @@ class WineError(Exception):
             if not self.error.stderr or not self.error.returncode or self.error.returncode < 0:
                 return str(self.error)
             else:
-                return "Wine command '%s' returned non-zero exit status %d:\n%s" % (
+                return "Command '%s' returned non-zero exit status %d:\n%s" % (
                         self.cmd, self.error.returncode, self.error.stderr)
         else:
-            return "Wine command '%s' failed: %s" % (self.cmd, self.error)
+            return "Command '%s' failed: %s" % (self.cmd, self.error)
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
@@ -157,6 +157,13 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
 def wine(cmd, **kwargs):
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
+    cmd = ['wine' + cmd]
+    return run(cmd, **kwargs)
+
+
+def run(cmd, **kwargs):
+    if isinstance(cmd, str):
+        cmd = shlex.split(cmd)
 
     stderr = tempfile.TemporaryFile()
     if 'stderr' not in kwargs:
@@ -171,14 +178,15 @@ def wine(cmd, **kwargs):
         kwargs['close_fds'] = True
 
     strcmd = subprocess.list2cmdline(cmd)
-    # click.echo(f'Running wine command: {strcmd}')
+    # click.echo(f'Running command: {strcmd}')
     try:
-        return subprocess.run(['wine'] + cmd, **kwargs)
+        return subprocess.run(cmd, **kwargs)
     except subprocess.CalledProcessError as exc:
         stderr.seek(0)
         exc.stderr = stderr.read().decode('utf-8')
-        raise WineError(strcmd, exc) from exc
-
+        raise ProcessError(strcmd, exc) from exc
+    except OSError as exc:
+        raise ProcessError(strcmd, exc) from exc
 
 def registry(reg, installdir, context):
     for key, entry in reg.items():
@@ -286,13 +294,13 @@ def runprocess(rp, installdir, context, blacklist, tricks):
 
                 if tricks_to_install:
                     # Winetricks manages wineserver itself, drop ours
-                    subprocess.run(['wineserver', '-k'])
-                    subprocess.run(['wineserver', '-w'])
+                    run(['wineserver', '-k'])
+                    run(['wineserver', '-w'])
                     cmd = ['winetricks'] + tricks_to_install
                     strcmd = subprocess.list2cmdline(cmd)
                     click.echo(f'Running {strcmd} for process {key}')
-                    subprocess.run(cmd, stdin=subprocess.DEVNULL, close_fds=True)
-                    subprocess.run(['wineserver', '-p'])
+                    run(cmd)
+                    run(['wineserver', '-p'])
                 else:
                     cmd = ['start', process]
                     if command:
@@ -302,7 +310,7 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                     click.echo(f'Running process {key}: {strcmd}')
                     try:
                         wine(cmd)
-                    except WineError as exc:
+                    except ProcessError as exc:
                         ignoreexitcode = entry.iget('ignoreexitcode')
                         if ignoreexitcode != '1':
                             raise
@@ -338,7 +346,7 @@ if __name__ == '__main__':
     try:
         click.echo('Running scripts')
         run_cmd_main(vdf_run_installscripts)
-    except WineError as exc:
+    except ProcessError as exc:
         sys.stderr.write(str(exc) + '\n')
         sys.exit(1)
     finally:
