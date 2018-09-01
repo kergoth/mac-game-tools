@@ -30,8 +30,7 @@ MAX_PROCS = 10
 WIN_USERNAME = 'steamuser'
 # directx is rarely a good idea, vcredists usually aren't needed, and when
 # they are, they should be winetricks, and dotnet needs winetricks also
-# TODO: consider automatically using winetricks in the dotnet case
-DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
+DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[0235])|msvc'
 DEFAULT_WINETRICKS_MAP = 'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
