@@ -3,8 +3,10 @@
 PATH="$(dirname "$0"):$PATH"
 appid="$1"
 appinfo="$(mktemp -t "${0##*/}.XXXXX")" || exit $?
+echo appid: $appid
 trap 'rm -f "$appinfo"' EXIT INT TERM
-steamcmd.sh +app_info_print "$appid" +quit | tail +8 >"$appinfo"
+set -x
+steam-app-info "$appid" ">$appinfo"
 for i in $(seq 0 10); do
     oslist="$(vdf-get "$appid.config.launch.$i.config.oslist" <"$appinfo" 2>/dev/null)"
     oslist="$(echo "$oslist" | tr ',' ' ')"

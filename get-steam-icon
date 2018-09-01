@@ -2,14 +2,9 @@
 
 PATH="$(dirname "$0"):$PATH"
 
-if ! which steamcmd.sh >/dev/null 2>&1; then
-    echo >&2 "Error: no steamcmd.sh found"
-    exit 1
-fi
-
 ret=0
 for appid; do
-    icon="$(steamcmd.sh +app_info_print "$appid" +quit | tail +8 | vdf-get "$appid.common.icon")"
+    icon="steam-app-info "$appid" | vdf-get "$appid.common.icon")"
     if [ -z "$icon" ]; then
         echo >&2 "Error: no icon found in appid info for $appid?"
         ret=1
