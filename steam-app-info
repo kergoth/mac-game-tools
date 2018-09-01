@@ -1,0 +1,58 @@
+#!/bin/sh
+
+if [ -z "$XDG_CACHE_HOME" ]; then
+    # shellcheck disable=SC2039
+    case "$OSTYPE" in
+        darwin*)
+            XDG_CACHE_HOME="$HOME/Library/Caches"
+            ;;
+        *)
+            XDG_CACHE_HOME="$HOME/.cache"
+            ;;
+    esac
+fi
+
+scriptname="$(basename "$0")"
+cache="$XDG_CACHE_HOME/$scriptname"
+mkdir -p "$cache"
+
+usage() {
+    echo >&2 "${0##*/} [-f] [-a AGE] APPID"
+    exit 2
+}
+
+age=6
+force=0
+while getopts fa:h opt; do
+    case "$opt" in
+        f)
+            force=1
+            ;;
+        a)
+            age="$OPTARG"
+            ;;
+        \? | h)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -ne 1 ]; then
+    usage
+fi
+appid="$1"
+
+if ! which steamcmd.sh >/dev/null 2>&1; then
+    echo >&2 "Error: steamcmd.sh not found, please install SteamCMD"
+    exit 1
+fi
+
+find "$cache" -name "$appid.txt" -mtime "+$age" -type f -print0 | xargs -0 rm -f
+if [ $force -eq 0 ] && [ -e "$cache/$appid.txt" ]; then
+    cat "$cache/$appid.txt"
+else
+    steamcmd.sh +app_info_print "$appid" +quit | \
+        sed -n -e '/^"[0-9]*"/,/^}$/p' | \
+        tee "$cache/$appid.txt"
+fi
