@@ -181,7 +181,7 @@ def run(cmd, **kwargs):
         return subprocess.run(cmd, **kwargs)
     except subprocess.CalledProcessError as exc:
         stderr.seek(0)
-        exc.stderr = stderr.read().decode('utf-8')
+        exc.stderr = stderr.read().decode('utf-8', errors='replace')
         raise ProcessError(strcmd, exc) from exc
     except OSError as exc:
         raise ProcessError(strcmd, exc) from exc
