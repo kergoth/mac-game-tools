@@ -3,7 +3,6 @@
 # %CDKEY% in any registry entries, so the user may have to set those manually
 # after retrieving their cd keys from Steam. Dead Space 2 is an example.
 
-import click
 import collections
 import os
 import re
@@ -12,9 +11,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import vdf
+
 from pathlib import Path
-from pprint import pprint
+
+sys.path.insert(0, Path(__file__).parent)
+
+import click
+import vdf
 
 
 MAX_FOLDERS = 10
@@ -25,7 +28,8 @@ DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc'
 DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
-class VDFDict(collections.OrderedDict):
+
+class VDFDict(vdf.VDFDict):
     """Dict with tweaks for vdf usage."""
 
     def iget(self, key, default=None):
@@ -93,7 +97,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         installdir = appmanifest
         vdffiles = installdir.rglob('*.vdf')
     else:
-        with open(appmanifest, 'r') as f:
+        with open(appmanifest, 'r', errors='replace') as f:
             parsed = vdf.load(f, mapper=VDFDict)
 
         appstate = parsed.iget('appstate')
@@ -132,7 +136,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
 
         click.echo(f'Processing install script {vdffile}')
 
-        with open(vdffile, 'rb') as f:
+        with open(vdffile, 'r', errors='replace') as f:
             parsed = vdf.load(f, mapper=VDFDict)
 
         inst = parsed.iget('installscript')
