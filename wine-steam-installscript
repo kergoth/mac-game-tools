@@ -26,7 +26,7 @@ MAX_PROCS = 10
 # they are, they should be winetricks, and dotnet needs winetricks
 DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc'
 DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
-
+WINETRICKS_BROKEN_64 = 'dotnet35'
 
 
 class VDFDict(vdf.VDFDict):
@@ -285,6 +285,8 @@ def runprocess(rp, installdir, context, blacklist, tricks):
             continue
 
         if should_run:
+            prefix = Path(os.getenv('WINEPREFIX', Path.home() / '.wine'))
+            syswow64 = prefix / 'drive_c' / 'windows' / 'syswow64'
             for i in range(1, MAX_PROCS):
                 process = entry.escaped_get(f'process {i}', context)
                 if not process:
@@ -298,6 +300,8 @@ def runprocess(rp, installdir, context, blacklist, tricks):
 
                 for regex, winetricks in tricks.items():
                     if regex.search(process) or (command and regex.search(command)) or (hasrunkey and regex.search(hasrunkey)):
+                        if syswow64.exists() and any(t for t in winetricks if t in WINETRICKS_BROKEN_64.split()):
+                            continue
                         tricks_to_install = winetricks
                         break
                 else:
