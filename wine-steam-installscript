@@ -132,7 +132,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
 
         click.echo(f'Processing install script {vdffile}')
 
-        with open(vdffile, 'r') as f:
+        with open(vdffile, 'rb') as f:
             parsed = vdf.load(f, mapper=VDFDict)
 
         inst = parsed.iget('installscript')
