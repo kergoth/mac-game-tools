@@ -10,6 +10,7 @@ from __future__ import print_function
 
 __version__ = "1.6"
 
+import codecs
 import re
 import sys
 
@@ -18,6 +19,7 @@ if sys.version_info[0] >= 3:
     string_type = str
     next_method_name = '__next__'
     BOMS = '\ufffe\ufeff'
+    BOMS = codecs.BOM_UTF16_LE
 
     def strip_bom(line):
         return line.lstrip(BOMS)
