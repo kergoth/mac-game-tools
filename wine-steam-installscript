@@ -249,7 +249,7 @@ def copyfolders(reg, installdir, context):
 
 
 def runprocess(rp, installdir, context, blacklist, tricks):
-    if isinstance(next(iter(rp))[1], str):
+    if isinstance(next(iter(rp.items()))[1], str):
         # Run Process is a single entry, not multiple
         rp = VDFDict({'Run Process': rp})
 
