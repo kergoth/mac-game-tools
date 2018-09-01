@@ -317,7 +317,7 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                     run(cmd)
                     run(['wineserver', '-p'])
                 else:
-                    cmd = ['start', process]
+                    cmd = ['start', '/wait', process]
                     if command:
                         cmd += shlex.split(command)
                     strcmd = subprocess.list2cmdline(cmd)
