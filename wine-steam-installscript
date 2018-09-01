@@ -69,11 +69,11 @@ class ProcessError(Exception):
 
     def __str__(self):
         if isinstance(self.error, subprocess.CalledProcessError):
-            if not self.error.stderr or not self.error.returncode or self.error.returncode < 0:
+            if (not self.error.stderr and not self.error.stdout) or not self.error.returncode or self.error.returncode < 0:
                 return str(self.error)
             else:
-                return "Command '%s' returned non-zero exit status %d:\n%s" % (
-                    self.cmd, self.error.returncode, self.error.stderr)
+                return "Command '%s' returned non-zero exit status %d:\n%s\n%s" % (
+                    self.cmd, self.error.returncode, self.error.stderr, self.error.stdout.decode('utf-8', errors='replace'))
         else:
             return "Command '%s' failed: %s" % (self.cmd, self.error)
 
@@ -185,7 +185,7 @@ def run(cmd, **kwargs):
         return subprocess.run(cmd, **kwargs)
     except subprocess.CalledProcessError as exc:
         stderr.seek(0)
-        exc.stderr = stderr.read().decode('utf-8', errors='replace')
+        exc.stderr = stderr.read()
         raise ProcessError(strcmd, exc) from exc
     except OSError as exc:
         raise ProcessError(strcmd, exc) from exc
