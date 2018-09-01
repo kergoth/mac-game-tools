@@ -2,14 +2,6 @@
 # NOTE: As we're running outside of steam, it's not possible to substitute
 # %CDKEY% in any registry entries, so the user may have to set those manually
 # after retrieving their cd keys from Steam. Dead Space 2 is an example.
-#
-# TODO: consider an automatic remap from redist to winetricks
-# TODO: flesh out possible registry entry type values
-# TODO for Proton.app: handle the script python module dep on click
-# TODO for Proton.app: move the steam library into drive_c to avoid hardcoding
-# host paths in drive_z in the registry
-# TODO: clean up the wine execution output on stderr, suppressing it until/if
-# there's a failure, by default
 
 import click
 import collections
@@ -30,7 +22,7 @@ MAX_PROCS = 10
 # directx is rarely a good idea, vcredists usually aren't needed, and when
 # they are, they should be winetricks, and dotnet needs winetricks
 DEFAULT_BLACKLIST = 'directx|dxsetup|(vcredist.*201[235])|msvc'
-DEFAULT_WINETRICKS_MAP = 'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
+DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 
 
 class VDFDict(collections.OrderedDict):
@@ -77,7 +69,7 @@ class ProcessError(Exception):
                 return str(self.error)
             else:
                 return "Command '%s' returned non-zero exit status %d:\n%s" % (
-                        self.cmd, self.error.returncode, self.error.stderr)
+                    self.cmd, self.error.returncode, self.error.stderr)
         else:
             return "Command '%s' failed: %s" % (self.cmd, self.error)
 
@@ -91,7 +83,8 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
     if tricks:
-        tricks = dict(((re.compile(r, re.IGNORECASE), t.split()) for r, t in (entry.split(':') for entry in tricks.split(';'))))
+        tricks = dict(((re.compile(r, re.IGNORECASE), t.split())
+                       for r, t in (entry.split(':') for entry in tricks.split(';'))))
 
     appmanifest = Path(appmanifest).resolve(strict=True)
     if use_installdir:
@@ -106,9 +99,11 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         if not scripts:
             return
 
-        installdir = appmanifest.parent / 'common'/ appstate.iget('installdir')
+        installdir = appmanifest.parent / \
+            'common' / appstate.iget('installdir')
         installdir = installdir.resolve(strict=True)
-        vdffiles = [installdir / script.replace('\\\\', '/') for script in scripts]
+        vdffiles = [installdir /
+                    script.replace('\\\\', '/') for script in scripts]
 
     proc = wine(['winepath', '-w', str(installdir)])
     winstalldir = proc.stdout.decode('utf-8').strip()
@@ -126,7 +121,8 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
 
     for vdffile in vdffiles:
         if blacklist and blacklist.search(str(vdffile)):
-            click.echo(f'Skipping blacklisted installscript by path: {vdffile}')
+            click.echo(
+                f'Skipping blacklisted installscript by path: {vdffile}')
             continue
 
         if not vdffile.exists():
@@ -157,7 +153,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
 def wine(cmd, **kwargs):
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
-    cmd = ['wine' + cmd]
+    cmd = ['wine'] + cmd
     return run(cmd, **kwargs)
 
 
@@ -188,6 +184,7 @@ def run(cmd, **kwargs):
     except OSError as exc:
         raise ProcessError(strcmd, exc) from exc
 
+
 def registry(reg, installdir, context):
     for key, entry in reg.items():
         ekey = key.replace('\\\\', '\\')
@@ -203,7 +200,8 @@ def registry(reg, installdir, context):
                 elif rtype.startswith('REG_'):
                     pass
                 else:
-                    click.echo(f'Unrecognized registry entry type in vdf: {rtype}')
+                    click.echo(
+                        f'Unrecognized registry entry type in vdf: {rtype}')
                     sys.exit(1)
                 for value_name, data in values.items():
                     _addreg(rtype, ekey, value_name, data, context)
@@ -227,7 +225,7 @@ def _addreg(rtype, ekey, value_name, data, context):
 
 
 def copyfolders(reg, installdir, context):
-    for name, entry in reg.items():
+    for _, entry in reg.items():
         for i in range(1, MAX_FOLDERS):
             src = entry.escaped_get(f'SrcFolder {i}', context)
             if not src:
@@ -246,7 +244,6 @@ def copyfolders(reg, installdir, context):
 
 def runprocess(rp, installdir, context, blacklist, tricks):
     for key, entry in rp.items():
-        run = True
         nocleanup = entry.escaped_get('nocleanup', context)
         osreq = entry.escaped_get('requirement_os', context)
         if osreq:
@@ -254,27 +251,30 @@ def runprocess(rp, installdir, context, blacklist, tricks):
             syswow64 = prefix / 'drive_c' / 'windows' / 'syswow64'
             is64 = osreq.iget('is64bitwindows')
             if is64 == '1' and not syswow64.exists():
-                click.echo(f'Skipping run process for {key}: requires 64-bit windows')
+                click.echo(
+                    f'Skipping run process for {key}: requires 64-bit windows')
                 continue
             elif is64 == '0' and syswow64.exists():
-                click.echo(f'Skipping run process for {key}: requires 32-bit windows')
+                click.echo(
+                    f'Skipping run process for {key}: requires 32-bit windows')
                 continue
 
+        should_run = True
         hasrunkey = entry.escaped_get('hasrunkey', context)
         if hasrunkey:
             proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False)
             if proc.returncode == 0:
-                run = False
+                should_run = False
             if blacklist and blacklist.search(hasrunkey):
-                click.echo(f'Skipping blacklisted runprocess {key} for {hasrunkey}')
+                click.echo(
+                    f'Skipping blacklisted runprocess {key} for {hasrunkey}')
                 continue
 
         if blacklist and blacklist.search(key):
             click.echo(f'Skipping blacklisted runprocess {key}')
             continue
 
-        if run:
-            cmds = []
+        if should_run:
             for i in range(1, MAX_PROCS):
                 process = entry.escaped_get(f'process {i}', context)
                 if not process:
@@ -310,14 +310,15 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                     click.echo(f'Running process {key}: {strcmd}')
                     try:
                         wine(cmd)
-                    except ProcessError as exc:
+                    except ProcessError:
                         ignoreexitcode = entry.iget('ignoreexitcode')
                         if ignoreexitcode != '1':
                             raise
 
             if hasrunkey:
                 wine(['reg', 'delete', hasrunkey, '/v', key, '/f'], check=False)
-                wine(['reg', 'add', hasrunkey, '/v', key, '/t', 'REG_DWORD', '/d', '1', '/f'])
+                wine(['reg', 'add', hasrunkey, '/v', key,
+                      '/t', 'REG_DWORD', '/d', '1', '/f'])
 
 
 def run_cmd_main(cmd):
