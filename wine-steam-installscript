@@ -319,7 +319,7 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                         f'Skipping blacklisted runprocess {key} for {process}')
                     continue
 
-                for regex, winetricks in tricks.    items():
+                for regex, winetricks in tricks.items():
                     if regex.search(process) or (command and regex.search(command)) or (hasrunkey and regex.search(hasrunkey)):
                         if syswow64.exists() and any(t for t in winetricks if t in WINETRICKS_BROKEN_64.split()):
                             continue

@@ -1,0 +1,263 @@
+#!/bin/sh
+
+set -eu
+
+scriptname="${0##*/}"
+scriptdir="$(dirname "$0")"
+PATH="$PATH:$scriptdir"
+
+usage () {
+    cat >&2 <<END
+${0##*/} [options] [APPID..]
+
+Options:
+  -s STEAM_LIBRARY_PATH    Specify steam library path
+  -c STEAMCMD_PATH         Specify steamcmd.sh path
+  -p PLATFORM              Specify target platform (macos, windows, linux)
+  -u USER                  Specify steam username (default: \$LOGNAME=$LOGNAME)
+  -v                       Force game validation
+  -a                       Install/update all existing installed APPIDs
+  -k                       Continue as much as possible
+END
+    exit 2
+}
+
+process_arguments () {
+    steamdir=
+    default_steamdir=1
+    steamcmd_path=
+    platform=
+    default_platform=0
+    user="$LOGNAME"
+    validate=0
+    update_all=0
+    continue=0
+    while getopts s:c:p:u:vakh opt; do
+        case "$opt" in
+            s)
+                steamdir="$(abspath "$OPTARG")"
+                default_steamdir=0
+                ;;
+            c)
+                steamcmd_path="$OPTARG"
+                if [ ! -e "$steamcmd_path" ]; then
+                    echo >&2 "Error: invalid path for -c: $OPTARG"
+                    return 2
+                fi
+                ;;
+            p)
+                platform="$OPTARG"
+                ;;
+            u)
+                user="$OPTARG"
+                ;;
+            v)
+                validate=1
+                ;;
+            a)
+                update_all=1
+                ;;
+            k)
+                continue=1
+                ;;
+            \?|h)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] && [ $update_all -eq 0 ]; then
+        usage
+    fi
+
+    default_platform="$(uname -s)"
+    # shellcheck disable=SC2039
+    case "$OSTYPE" in
+        darwin*)
+            default_platform=macos
+            ;;
+        *)
+            if [ "$OSTYPE" = linux-gnu ]; then
+                case "$(uname -r)" in
+                    *-Microsoft)
+                        default_platform=windows
+                        ;;
+                esac
+            fi
+        ;;
+    esac
+
+    if [ -z "$platform" ]; then
+        platform="$default_platform"
+    fi
+
+    if [ "$platform" != "$default_platform" ] && [ $default_steamdir -eq 1 ]; then
+        echo >&2 "Warning: use of default steamdir with non-default platform"
+    fi
+
+    if [ -z "$steamdir" ]; then
+        case "$default_platform" in
+            [lL]inux)
+                steamdir="$HOME/Steam"
+                ;;
+            [mM]acos|[mM]ac)
+                steamdir="$HOME/Library/Application Support/Steam"
+                ;;
+            [wW]indows)
+                echo >&2 "Error: unknown default steam library path for platform=Windows"
+                return 1
+                ;;
+        esac
+    fi
+    if [ -d "$steamdir" ]; then
+        steamapps="$(find "$steamdir/" -maxdepth 1 -type d -iname steamapps | head -n 1)"
+    else
+        steamapps="$steamdir/steamapps"
+    fi
+}
+
+get_acf () {
+    # I could use the appmanifest acf for this, but it lacks oslist, etc
+    steam-app-info "$1"
+}
+
+acf_get_var () {
+    var="$1"
+    shift
+    sed -n -e "s/^[	]*\"$var\"[^\"]*\"\\(.*\\)\"\$/\\1/p" "$@"
+}
+
+quote () {
+    sed -e "s,','\\\\'',g; 1s,^,',; \$s,\$,',;" << EOF
+$1
+EOF
+}
+
+quoted_args () {
+    for arg; do
+        case "$arg" in
+        *\'*)
+            arg="$(quote "$arg")"
+            ;;
+        *[\!\ \"]*)
+            arg="'$arg'"
+            ;;
+        esac
+        printf " %s" "$arg"
+    done | sed 's,^ ,,'
+}
+
+steamcmd () {
+    # shellcheck disable=SC2016
+    printf >&2 'Running `steamcmd.sh %s`\n' "$(quoted_args "$@")"
+    if [ -n "$steamcmd_path" ]; then
+        "$steamcmd_path" "$@"
+    else
+        steamcmd.sh "$@"
+    fi
+}
+
+game_install () {
+    if [ $validate -eq 1 ]; then
+        validatearg=validate
+    else
+        validatearg=
+    fi
+    game_install_appid="$1"
+    shift
+
+    # +@NoPromptForPassword 1
+    steamcmd \
+        +@ShutdownOnFailedCommand 1 \
+        +@sSteamCmdForcePlatformType "$platform" \
+        +login "$user" \
+        "$@" \
+        +app_license_request "$game_install_appid" \
+        +app_update "$game_install_appid" $validatearg \
+        +quit
+}
+
+game_install_forced () {
+    rm -rf "$2/steamapps"
+    mkdir -p "$2/steamapps"
+    if [ -e "$steamapps/appmanifest_$1.acf" ]; then
+        cp "$steamapps/appmanifest_$1.acf" "$2/steamapps"
+    fi
+    ln -s ../../downloading "$2/steamapps/downloading"
+    ret=0
+    game_install "$1" +force_install_dir "$2" || ret=$?
+    rm -f "$2/steamapps/downloading"
+    cp -a "$2/steamapps/"* "$steamapps/" || :
+    rm -rf "$2/steamapps"
+    rmdir "$2" 2>/dev/null || :
+    return $ret
+}
+
+list_appids () {
+	(
+        if [ $# -gt 0 ]; then
+            echo "$@" | tr ' ' '\n'
+        fi
+		if [ -d "$steamapps" ]; then
+			find "$steamapps" -maxdepth 1 -type f -name appmanifest_\*.acf 2>/dev/null | sed 's,.*appmanifest_,,; s,\.acf$,,'
+		fi
+	) | sort -un
+}
+
+
+process_arguments "$@" || exit $?
+shift $((OPTIND - 1))
+
+echo "Platform: $platform"
+echo "Steam Library Path: $steamdir"
+echo "SteamApps Path: $steamapps"
+
+tmpfile="$(mktemp -t "$scriptname.XXXXXX")" || exit 1
+trap 'rm -f "$tmpfile"' EXIT INT TERM
+
+if [ $update_all -eq 1 ] && [ -d "$steamapps" ]; then
+	# shellcheck disable=SC2046
+	set -- "$@" $(list_appids | tr '\n' ' ')
+fi
+
+mkdir -p "$steamapps/common"
+for appid; do
+    echo "AppID: $appid"
+    get_acf "$appid" >"$tmpfile"
+    appname="$(acf_get_var name "$tmpfile" | head -n 1)"
+    echo "AppName: $appname"
+    platforms="$(acf_get_var oslist "$tmpfile" | head -n 1)"
+	if [ -z "$platforms" ]; then
+		platforms=windows
+	fi
+	echo "OsList: $platforms"
+	if ! echo "$platforms" | tr ',' ' ' | grep -qwi "$platform"; then
+		if [ $update_all -eq 1 ] || [ $continue -eq 1 ]; then
+			echo >&2 "Platform '$platform' is unsupported for $appname, skipping"
+			continue
+		else
+			# If explicitly requested, error out
+			echo >&2 "Platform '$platform' is unsupported for $appname"
+			exit 1
+		fi
+	fi
+    if [ $default_steamdir -eq 1 ]; then
+        game_install "$appid"
+    else
+        installdirname="$(acf_get_var installdir "$tmpfile" | head -n 1)"
+        if [ -z "$installdirname" ];then
+            echo >&2 "Error: no install dir determined for $appid"
+            exit 1
+        fi
+        installdir="$steamapps/common/$installdirname"
+        echo "Installdir: $installdir"
+        if [ -d "$installdir" ]; then
+            game_install_forced "$appid" "$installdir"
+        else
+            installtemp="$steamapps/temp/$installdirname"
+            game_install_forced "$appid" "$installtemp" && \
+                mv "$installtemp" "$installdir"
+        fi
+    fi
+done
