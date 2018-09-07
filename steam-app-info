@@ -53,6 +53,6 @@ if [ $force -eq 0 ] && [ -e "$cache/$appid.txt" ]; then
     cat "$cache/$appid.txt"
 else
     steamcmd.sh +app_info_print "$appid" +quit | \
-        sed -n -e '/^"[0-9]*"/,/^}$/p' | \
+        LANG=C sed -n -e '/^"[0-9]*"/,/^$/p' | grep -Ev 'CWorkThreadPool' | \
         tee "$cache/$appid.txt"
 fi

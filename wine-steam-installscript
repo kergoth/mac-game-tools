@@ -72,10 +72,17 @@ class ProcessError(Exception):
             if (not self.error.stderr and not self.error.stdout) or not self.error.returncode or self.error.returncode < 0:
                 return str(self.error)
             else:
-                return "Command '%s' returned non-zero exit status %d:\n%s\n%s" % (
-                    self.cmd, self.error.returncode, self.error.stderr, self.error.stdout.decode('utf-8', errors='replace'))
+                decoded_out = self.error.stdout.decode(
+                    'utf-8', errors='replace')
+                indented_out = ''.join(
+                    '  ' + l for l in decoded_out.splitlines(keepends=True))
+                decoded_err = self.error.stderr.decode(
+                    'utf-8', errors='replace')
+                indented_err = ''.join(
+                    '  ' + l for l in decoded_err.splitlines(keepends=True))
+                return f"Command '{self.cmd}' returned non-zero exit status {self.error.returncode}:\n{indented_err}\n{indented_out}'"
         else:
-            return "Command '%s' failed: %s" % (self.cmd, self.error)
+            return f"Command '{self.cmd}' failed: {self.error}"
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
@@ -83,6 +90,20 @@ class ProcessError(Exception):
 @click.option('-t', '--tricks', help='Map of regex patterns to winetricks to install. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_WINETRICKS_MAP)
 @click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
 @click.argument('appmanifest', nargs=1, required=True)
+def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
+    click.echo('Starting wineserver')
+    subprocess.run(['wineserver', '-p'])
+    try:
+        click.echo('Running scripts')
+        vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir)
+    except ProcessError as exc:
+        sys.stderr.write(str(exc) + '\n')
+        sys.exit(1)
+    finally:
+        click.echo('Cleaning up wineserver')
+        subprocess.run(['wineserver', '-k'])
+        subprocess.run(['wineserver', '-w'])
+
 def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
@@ -143,10 +164,6 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         if not inst:
             continue
 
-        rp = inst.iget('run process')
-        if rp:
-            runprocess(rp, installdir, context, blacklist, tricks)
-
         reg = inst.iget('registry')
         if reg:
             registry(reg, installdir, context)
@@ -154,6 +171,10 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         cf = inst.iget('copy folders')
         if cf:
             copyfolders(cf, installdir, context)
+
+        rp = inst.iget('run process')
+        if rp:
+            runprocess(rp, installdir, context, blacklist, tricks)
 
 
 def wine(cmd, **kwargs):
@@ -298,7 +319,7 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                         f'Skipping blacklisted runprocess {key} for {process}')
                     continue
 
-                for regex, winetricks in tricks.items():
+                for regex, winetricks in tricks.    items():
                     if regex.search(process) or (command and regex.search(command)) or (hasrunkey and regex.search(hasrunkey)):
                         if syswow64.exists() and any(t for t in winetricks if t in WINETRICKS_BROKEN_64.split()):
                             continue
@@ -348,7 +369,7 @@ def run_cmd_main(cmd):
         if exc.ctx:
             color = exc.ctx.color
             click.echo(exc.ctx.get_help() + '\n', file=sys.stderr, color=color)
-        click.echo('Error: %s' % exc.format_message(), file=sys.stderr,
+        click.echo(f'Error: {exc.format_message()}', file=sys.stderr,
                    color=color)
         sys.exit(exc.exit_code)
     except click.ClickException as exc:
@@ -357,15 +378,4 @@ def run_cmd_main(cmd):
 
 
 if __name__ == '__main__':
-    click.echo('Starting wineserver')
-    subprocess.run(['wineserver', '-p'])
-    try:
-        click.echo('Running scripts')
-        run_cmd_main(vdf_run_installscripts)
-    except ProcessError as exc:
-        sys.stderr.write(str(exc) + '\n')
-        sys.exit(1)
-    finally:
-        click.echo('Cleaning up wineserver')
-        subprocess.run(['wineserver', '-k'])
-        subprocess.run(['wineserver', '-w'])
+    run_cmd_main(cmd_run_installscripts)

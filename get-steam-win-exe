@@ -1,19 +1,29 @@
 #!/bin/sh
 
 PATH="$(dirname "$0"):$PATH"
-appid="$1"
-appinfo="$(mktemp -t "${0##*/}.XXXXX")" || exit $?
-echo appid: $appid
-trap 'rm -f "$appinfo"' EXIT INT TERM
-set -x
-steam-app-info "$appid" ">$appinfo"
-for i in $(seq 0 10); do
-    oslist="$(vdf-get "$appid.config.launch.$i.config.oslist" <"$appinfo" 2>/dev/null)"
-    oslist="$(echo "$oslist" | tr ',' ' ')"
-    if [ -z "$oslist" ] || echo "$oslist" | grep -qw windows; then
-        if exe="$(vdf-get "$appid.config.launch.$i.executable" <"$appinfo" 2>/dev/null)" && [ -n "$exe" ]; then
-            echo "$exe" | sed -e 's#\\\\#/#g; s#\\#/#g;'
-            break
+if [ $# -eq 0 ]; then
+    echo >&2 "Usage: ${0##*/} APPID [APPID..]"
+    exit 1
+fi
+
+for appid; do
+    for i in $(seq 0 10); do
+        exe="$(steam-app-info "$appid" | vdf-get "$appid.config.launch.$i.executable" 2>/dev/null)"
+        if [ -n "$exe" ]; then
+            oslist="$(steam-app-info "$appid" | vdf-get "$appid.config.launch.$i.config.oslist" 2>/dev/null)"
+            if [ -z "$oslist" ] || echo "$oslist" | tr ',' ' ' | grep -qw windows; then
+                echo "$exe" | sed -e 's#\\\\#/#g; s#\\#/#g;' | tr -d '\n'
+                args="$(steam-app-info "$appid" | vdf-get "$appid.config.launch.$i.arguments" 2>/dev/null)"
+                if [ -n "$args" ]; then
+                    echo " $args"
+                else
+                    echo
+                fi
+                exit 0
+            fi
         fi
-    fi
+    done
 done
+
+echo >&2 "Error: no exe for $appid"
+exit 1
