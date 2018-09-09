@@ -49,10 +49,10 @@ if ! which steamcmd.sh >/dev/null 2>&1; then
 fi
 
 find "$cache" -name "$appid.txt" -mtime "+$age" -type f -print0 | xargs -0 rm -f
-if [ $force -eq 0 ] && [ -e "$cache/$appid.txt" ]; then
+if [ $force -eq 0 ] && [ -s "$cache/$appid.txt" ]; then
     cat "$cache/$appid.txt"
 else
-    steamcmd.sh +app_info_print "$appid" +quit | \
-        LANG=C sed -n -e '/^"[0-9]*"/,/^$/p' | grep -Ev 'CWorkThreadPool' | \
-        tee "$cache/$appid.txt"
+    steamcmd.sh +app_info_print "$appid" +quit \
+        | LANG=C sed -n -e '/^"[0-9]*"/,/^$/p' | grep -Ev 'CWorkThreadPool' \
+        | tee "$cache/$appid.txt"
 fi
