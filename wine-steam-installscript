@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# NOTE: As we're running outside of steam, it's not possible to substitute
+# NOTE: As we're running outside of Steam, it's not possible to substitute
 # %CDKEY% in any registry entries, so the user may have to set those manually
 # after retrieving their cd keys from Steam. Dead Space 2 is an example.
 
@@ -22,8 +22,8 @@ import vdf
 
 MAX_FOLDERS = 10
 MAX_PROCS = 10
-# directx is rarely a good idea, vcredists usually aren't needed, and when
-# they are, they should be winetricks, and dotnet needs winetricks
+# directx is rarely a good idea, vcredists usually aren't needed, and when they
+# are, they should be winetricks, and dotnet needs winetricks
 DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc|amdcpu'
 DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
 WINETRICKS_BROKEN_64 = 'dotnet35'
@@ -104,6 +104,7 @@ def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         subprocess.run(['wineserver', '-k'])
         subprocess.run(['wineserver', '-w'])
 
+
 def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
@@ -118,6 +119,10 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         installdir = appmanifest
         vdffiles = installdir.rglob('*.vdf')
     else:
+        # Replacing invalid utf-8 characters isn't ideal. Ideally, we wouldn't
+        # make any assumptions about the encoding at all, opening it in binary
+        # mode, and ensure we query it with bytes. We'd have to determine how to
+        # use it from there, however.
         with open(appmanifest, 'r', errors='replace') as f:
             parsed = vdf.load(f, mapper=VDFDict)
 
