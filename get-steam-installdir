@@ -1,0 +1,11 @@
+#!/bin/sh
+
+PATH="$(dirname "$0"):$PATH"
+if [ $# -eq 0 ]; then
+    echo >&2 "Usage: ${0##*/} APPID [APPID..]"
+    exit 1
+fi
+
+for appid; do
+    steam-app-info "$appid" | vdf-get "$appid.config.installdir"
+done
