@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# NOTE: As we're running outside of Steam, it's not possible to substitute
-# %CDKEY% in any registry entries, so the user may have to set those manually
-# after retrieving their cd keys from Steam. Dead Space 2 is an example.
 
 import collections
 import os
@@ -91,11 +88,19 @@ class ProcessError(Exception):
 @click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
 @click.argument('appmanifest', nargs=1, required=True)
 def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
+    cfgfile = Path.home / '.config' / Path(__file__).name + '.toml'
+    if cfgfile.exists():
+        with open(cfgfile, 'r') as f:
+            config = toml.load(f)
+    else:
+        config = {}
+
     click.echo('Starting wineserver')
     subprocess.run(['wineserver', '-p'])
     try:
         click.echo('Running scripts')
-        vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir)
+        vdf_run_installscripts(appmanifest, blacklist,
+                               tricks, use_installdir, config.get('cdkeys'))
     except ProcessError as exc:
         sys.stderr.write(str(exc) + '\n')
         sys.exit(1)
@@ -105,7 +110,7 @@ def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         subprocess.run(['wineserver', '-w'])
 
 
-def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
+def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir, cdkeys=None):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
     if tricks:
@@ -150,6 +155,10 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         'USER_MYDOCS': docs.replace('\\\\', '\\'),
         'windir': 'c:\\windows',
     }
+    if not use_installdir:
+        appid = appstate.iget('appid')
+        if cdkeys and appid in cdkeys:
+            context['CDKEY'] = cdkeys.get(appid)
 
     for vdffile in vdffiles:
         if blacklist and blacklist.search(str(vdffile)):
