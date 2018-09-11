@@ -367,9 +367,10 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                             raise
 
             if hasrunkey:
+                runvalue = entry.iget('minimumhasrunvalue') or '1'
                 wine(['reg', 'delete', hasrunkey, '/v', key, '/f'], check=False)
                 wine(['reg', 'add', hasrunkey, '/v', key,
-                      '/t', 'REG_DWORD', '/d', '1', '/f'])
+                      '/t', 'REG_DWORD', '/d', runvalue, '/f'])
 
 
 def run_cmd_main(cmd):
