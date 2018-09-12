@@ -89,8 +89,9 @@ class ProcessError(Exception):
 @click.option('-b', '--blacklist', help='Regex for processes to exclude from execution. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_BLACKLIST)
 @click.option('-t', '--tricks', help='Map of regex patterns to winetricks to install. Checked against installscript path, registry runkey, and the process and arguments.', default=DEFAULT_WINETRICKS_MAP)
 @click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
+@click.option('-L', '--win-steam-library-path', help='Windows path to the Steam Library')
 @click.argument('appmanifest', nargs=1, required=True)
-def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
+def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir, win_steam_library_path):
     cfgfile = Path.home() / '.config' / Path(__file__).name
     cfgfile = cfgfile.with_suffix('.toml')
     if cfgfile.exists():
@@ -104,7 +105,7 @@ def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
     try:
         click.echo('Running scripts')
         vdf_run_installscripts(appmanifest, blacklist,
-                               tricks, use_installdir, config.get('cdkeys'))
+                               tricks, use_installdir, win_steam_library_path, config.get('cdkeys'))
     except ProcessError as exc:
         sys.stderr.write(str(exc) + '\n')
         sys.exit(1)
@@ -114,7 +115,7 @@ def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
         subprocess.run(['wineserver', '-w'])
 
 
-def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir, cdkeys=None):
+def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir, win_steam_library_path, cdkeys=None):
     if blacklist:
         blacklist = re.compile(blacklist, re.IGNORECASE)
     if tricks:
@@ -146,8 +147,12 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir, cdkey
         vdffiles = [installdir /
                     script.replace('\\\\', '/') for script in scripts]
 
-    proc = wine(['winepath', '-w', str(installdir)])
-    winstalldir = proc.stdout.decode('utf-8').strip()
+    if win_steam_library_path:
+        win_steam_library_path = win_steam_library_path.replace('\\\\', '\\')
+        winstalldir = f'{win_steam_library_path}\\steamapps\\common\\{installdir.name}'
+    else:
+        proc = wine(['winepath', '-w', str(installdir)])
+        winstalldir = proc.stdout.decode('utf-8').strip()
 
     shellfolders = 'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders'
     proc = wine(['reg', 'query', shellfolders, '/v', 'Personal', '/f'])
@@ -155,7 +160,7 @@ def vdf_run_installscripts(appmanifest, blacklist, tricks, use_installdir, cdkey
     docs = querylines[0].lstrip().split(maxsplit=2)[2]
 
     context = {
-        'INSTALLDIR': winstalldir,
+        'INSTALLDIR': str(winstalldir),
         'USER_MYDOCS': docs.replace('\\\\', '\\'),
         'windir': 'c:\\windows',
     }
