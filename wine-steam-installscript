@@ -281,11 +281,12 @@ def _addreg(rtype, ekey, value_name, data, context):
     else:
         for c, v in context.items():
             data = data.replace(f'%{c}%', v)
+        click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
         if value_name == '(Default)':
             value_name = ""
-        click.echo(f'Setting registry entry {ekey}\\{value_name} to {data}')
         wine(['reg', 'delete', ekey, '/v', value_name, '/f'], check=False)
-        wine(['reg', 'add', ekey, '/v', value_name, '/t', rtype, '/d', data, '/f'])
+        wine(['reg', 'add', ekey, '/v', value_name,
+              '/t', rtype, '/d', data, '/f'])
 
 
 def copyfolders(reg, installdir, context):
