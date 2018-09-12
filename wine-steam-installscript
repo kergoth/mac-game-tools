@@ -220,7 +220,9 @@ def run(cmd, **kwargs):
     # click.echo(f'Running command: {strcmd}')
     try:
         result = subprocess.run(cmd, **kwargs)
-        result.stderr.seek(0)
+        if result.stderr:
+            result.stderr.seek(0)
+        return result
     except subprocess.CalledProcessError as exc:
         stderr.seek(0)
         exc.stderr = stderr.read()
