@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, Path(__file__).parent)
 
 import click
+import toml
 import vdf
 
 
@@ -88,7 +89,8 @@ class ProcessError(Exception):
 @click.option('-d/-D', '--use-installdir/--no-use-installdir', help='Specify an installdir rather than an appmanifest. In this case all .vdf files in the installdir are processed.')
 @click.argument('appmanifest', nargs=1, required=True)
 def cmd_run_installscripts(appmanifest, blacklist, tricks, use_installdir):
-    cfgfile = Path.home / '.config' / Path(__file__).name + '.toml'
+    cfgfile = Path.home() / '.config' / Path(__file__).name
+    cfgfile = cfgfile.with_suffix('.toml')
     if cfgfile.exists():
         with open(cfgfile, 'r') as f:
             config = toml.load(f)
