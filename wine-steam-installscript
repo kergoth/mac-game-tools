@@ -67,15 +67,20 @@ class ProcessError(Exception):
             if (not self.error.stderr and not self.error.stdout) or not self.error.returncode or self.error.returncode < 0:
                 return str(self.error)
             else:
-                decoded_out = self.error.stdout.decode(
-                    'utf-8', errors='replace')
-                indented_out = ''.join(
-                    '  ' + l for l in decoded_out.splitlines(keepends=True))
-                decoded_err = self.error.stderr.decode(
-                    'utf-8', errors='replace')
-                indented_err = ''.join(
-                    '  ' + l for l in decoded_err.splitlines(keepends=True))
-                return f"Command '{self.cmd}' returned non-zero exit status {self.error.returncode}:\n{indented_err}\n{indented_out}'"
+                msg = f"Command '{self.cmd}' returned non-zero exit status {self.error.returncode}:\n"
+                if self.error.stdout:
+                    decoded_out = self.error.stdout.decode(
+                        'utf-8', errors='replace')
+                    indented_out = ''.join(
+                        '  ' + l for l in decoded_out.splitlines(keepends=True))
+                    msg += indented_out + '\n'
+                if self.error.stderr:
+                    decoded_err = self.error.stderr.decode(
+                        'utf-8', errors='replace')
+                    indented_err = ''.join(
+                        '  ' + l for l in decoded_err.splitlines(keepends=True))
+                    msg += indented_err
+                return msg
         else:
             return f"Command '{self.cmd}' failed: {self.error}"
 
@@ -201,9 +206,8 @@ def run(cmd, **kwargs):
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
 
-    stderr = tempfile.TemporaryFile()
     if 'stderr' not in kwargs:
-        kwargs['stderr'] = stderr
+        kwargs['stderr'] = subprocess.PIPE
     if 'stdout' not in kwargs:
         kwargs['stdout'] = subprocess.PIPE
     if 'stdin' not in kwargs:
@@ -213,16 +217,23 @@ def run(cmd, **kwargs):
     if 'close_fds' not in kwargs:
         kwargs['close_fds'] = True
 
+    stderr_is_pipe = kwargs['stderr'] == subprocess.PIPE
+    if stderr_is_pipe:
+        stderr = tempfile.TemporaryFile()
+        kwargs['stderr'] = stderr
+
     strcmd = subprocess.list2cmdline(cmd)
     # click.echo(f'Running command: {strcmd}')
     try:
         result = subprocess.run(cmd, **kwargs)
-        if result.stderr:
-            result.stderr.seek(0)
+        if stderr_is_pipe:
+            stderr.seek(0)
+            result.stderr = stderr.read()
         return result
     except subprocess.CalledProcessError as exc:
-        stderr.seek(0)
-        exc.stderr = stderr.read()
+        if stderr_is_pipe:
+            stderr.seek(0)
+            exc.stderr = stderr.read()
         raise ProcessError(strcmd, exc) from exc
     except OSError as exc:
         raise ProcessError(strcmd, exc) from exc
