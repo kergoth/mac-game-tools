@@ -312,9 +312,16 @@ def runprocess(rp, installdir, context, blacklist, tricks):
         should_run = True
         hasrunkey = entry.escaped_get('hasrunkey', context)
         if hasrunkey:
+            runvalue = entry.iget('minimumhasrunvalue') or '1'
             proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False)
             if proc.returncode == 0:
-                should_run = False
+                if proc.stdout:
+                    lines = proc.stdout.read().decode('utf-8')
+                    if len(lines) > 1:
+                        curvalue = lines[1].split()[2]
+                        if int(curvalue) >= int(runvalue):
+                            should_run = False
+
             if blacklist and blacklist.search(hasrunkey):
                 click.echo(
                     f'Skipping blacklisted runprocess {key} for {hasrunkey}')
@@ -371,7 +378,6 @@ def runprocess(rp, installdir, context, blacklist, tricks):
                             raise
 
             if hasrunkey:
-                runvalue = entry.iget('minimumhasrunvalue') or '1'
                 wine(['reg', 'delete', hasrunkey, '/v', key, '/f'], check=False)
                 wine(['reg', 'add', hasrunkey, '/v', key,
                       '/t', 'REG_DWORD', '/d', runvalue, '/f'])
