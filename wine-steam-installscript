@@ -240,7 +240,8 @@ def run(cmd, **kwargs):
 
 
 def registry(reg, installdir, context):
-    for key, entry in reg.items():
+    for key in reg:
+        entry = reg.escaped_get(key, context)
         ekey = key.replace('\\\\', '\\')
         click.echo(f'Adding registry key {ekey}')
         wine(['reg', 'add', ekey, '/f'])
@@ -257,9 +258,11 @@ def registry(reg, installdir, context):
                     click.echo(
                         f'Unrecognized registry entry type in vdf: {rtype}')
                     sys.exit(1)
-                for value_name, data in values.items():
+                for value_name in values:
+                    data = values.escaped_get(value_name, context)
                     _addreg(rtype, ekey, value_name, data, context)
             else:
+                values = entry.escaped_get(rtype, context)
                 # No type dict, default to a string
                 _addreg('REG_SZ', ekey, rtype, values, context)
 
