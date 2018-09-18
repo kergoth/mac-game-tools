@@ -20,7 +20,7 @@ MAX_PROCS = 10
 # are, they should be winetricks, and dotnet needs winetricks. tages is DRM
 # and refuses to install
 DEFAULT_BLACKLIST = r'directx|dxsetup|vcredist|msvc|amdcpu|tages'
-DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20'
+DEFAULT_WINETRICKS_MAP = r'dotnet.*3\.?5:dotnet35;dotnet.*4\.?0:dotnet40;dotnet.*4\.?5:dotnet45;dotnet.*2\.?0:dotnet20;xna.*4\.?0:xna40;xna.*4\.?5:xna45'
 WINETRICKS_BROKEN_64 = 'dotnet35'
 
 
