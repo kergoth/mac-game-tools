@@ -37,11 +37,7 @@ class VDFDict(vdf.VDFDict):
 
     def expanded_get(self, key, context, default=None):
         """Return a value for the key, expanding special values."""
-        if isinstance(key, str):
-            for k in self:
-                if isinstance(k, str) and k.lower() == key.lower():
-                    key = k
-        value = self.get(key, default)
+        value = self.iget(key, default)
         if isinstance(value, str):
             for ck in context:
                 if f'{ck}' in value:
@@ -335,7 +331,8 @@ def runprocess(rp, installdir, context, blacklist, tricks):
             proc = wine(['reg', 'query', hasrunkey, '/v', key], check=False)
             if proc.returncode == 0:
                 if runvalue:
-                    lines = [l for l in proc.stdout.decode('utf-8').splitlines() if l.strip()]
+                    lines = [l for l in proc.stdout.decode(
+                        'utf-8').splitlines() if l.strip()]
                     if len(lines) > 1:
                         value_line = lines[1]
                         curvalue = value_line.rsplit(None, 1)[1]
