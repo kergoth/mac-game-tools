@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+
+import sys
+from steamfiles import acf, appinfo
+with open(sys.argv[1], "rb") as f:
+    d = appinfo.load(f)
+acf.dump(d, sys.stdout)
