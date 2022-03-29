@@ -10,6 +10,9 @@ extractpathicon () {
         if [ -e "$1"/$'Icon\r' ]; then
             # Decompile the resource fork of the folder into $2
             DeRez -only icns "$1"/$'Icon\r' >"$2"
+        elif [ -e "$1/Contents/Resources/Wineskin.icns" ]; then
+            sips -i "$1/Contents/Resources/Wineskin.icns" >/dev/null
+            cp -f "$1/Contents/Resources/Wineskin.icns" "$2"
         elif [ -e "$1/Contents/Info.plist" ]; then
             iconfile="$1/Contents/Resources/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$1/Contents/Info.plist")"
             if [ -z "$iconfile" ]; then
@@ -18,8 +21,8 @@ extractpathicon () {
             iconfile="${iconfile%.icns}.icns"
 
             if [ -e "$iconfile" ]; then
-                cp -f "$iconfile" "$2"
                 sips -i "$iconfile" >/dev/null
+                cp -f "$iconfile" "$2"
             else
                 return 2
             fi
