@@ -1,0 +1,143 @@
+#!/bin/bash
+
+set -euo pipefail
+
+PATH="$(dirname "$0"):$PATH"
+
+usage () {
+    cat <<END >&2
+Usage: ${0##*/} [options] GAME_DIR [DEST_APP]
+
+Options:
+
+  -c             Check only. Return 0 if the game is supported by this script, 10 if not.
+  -n             No copy. This disables copying the game dir into the app, so
+                 you can make such arrangements yourself, or in a calling script.
+  -r REL_PATH    Specify the relative path to the game dir from the
+                 Contents/Resources dir in the app. Default: ../../Game.
+END
+    exit 1
+}
+
+process_arguments () {
+    check_only=0
+    no_copy=0
+    rel_path=../../Game
+
+    while getopts cnr:h opt; do
+        case "$opt" in
+            c)
+                check_only=1
+                ;;
+            n)
+                no_copy=1
+                ;;
+            r)
+                rel_path="$OPTARG"
+                ;;
+            h|\?)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        echo >&2 "Error: incorrect number of arguments"
+        usage
+    fi
+
+    gamedir="$(cd "$1" && pwd -P)"
+    if [ $# -gt 1 ]; then
+        destdir="${2%.app}.app"
+    else
+        destdir="${gamedir##*/}.app"
+    fi
+}
+
+check_supported () {
+    if [ -z "$(find "$gamedir"/ -iname acsetup.cfg -maxdepth 1)" ]; then
+        # Game unsupported
+        if [ $check_only -eq 0 ]; then
+            echo >&2 "Error: $gamedir is unsupported"
+        fi
+        exit 10
+    fi
+
+    if [ $check_only -eq 1 ]; then
+        exit 0
+    fi
+}
+
+locate_app_by_id () {
+    mdfind "kMDItemContentType == 'com.apple.application-bundle' && kMDItemCFBundleIdentifier == '$*'"
+}
+
+
+process_arguments "$@"
+check_supported
+
+if [ -e "$destdir" ]; then
+    echo >&2 "Error: $destdir already exists, aborting"
+    exit 2
+fi
+
+ags="$(locate_app_by_id "uk.co.adventuregamestudio.ags" | sed 's,$,/Contents/MacOS/AGS,' | nlxargs ls -t | head -n 1 | sed 's,/Contents/MacOS/AGS,,')"
+if [ -z "$ags" ]; then
+    echo >&2 "Error: unable to locate AGS, please make it available."
+    return 1
+fi
+echo >&2 "AGS: $ags"
+
+new-app "$destdir"
+if [ ! -e "$destdir" ]; then
+    mv "$destdir.app" "$destdir"
+fi
+cp -a "$ags" "$destdir/Contents/Resources/"
+ln -s "Contents/Resources/${ags##*/}" "$destdir"
+
+rm -rf "$destdir/Game"
+if [ $no_copy -eq 0 ]; then
+    cp -a "$gamedir" "$destdir/Game"
+    if [ "$rel_path" != "../../Game" ]; then
+        echo >&2 "Warning: copying game, ignoring specified rel_path $rel_path"
+    fi
+else
+    cp -a "$(which lnr)" "$destdir/Contents/Resources/"
+    cat <<END >"$destdir/finalize_wrapper"
+#!/bin/sh
+cd "\$(dirname "\$0")"
+gamedir="Contents/Resources/\$rel_path"
+if [ -L Game ]; then
+    gamedir="\$(readlink Game)"
+    if [ -d "\$gamedir" ]; then
+        (
+            set -e
+            rm Game
+            mv "\$gamedir" Game
+            ./Contents/Resources/lnr Game "\$gamedir"
+            rm -f ./Contents/Resources/lnr "\${0##*/}"
+        ) || ln -s "\$gamedir" Game
+    fi
+fi
+END
+    chmod +x "$destdir/finalize_wrapper"
+fi
+
+if [ -z "${exe:-}" ]; then
+    exe="$(cd "$gamedir" && find . -iname \*.001 | sed -e 's#\.001$#.exe#')"
+fi
+
+cat <<END >"$destdir/Contents/MacOS/app"
+#!/bin/bash
+set -e
+cd "\$(dirname "\$0")/../Resources/$rel_path"
+ls
+"\$(dirname "\$0")/../Resources/AGS.app/Contents/MacOS/AGS" "\$@" "\$PWD/$exe"
+END
+chmod +x "$destdir/Contents/MacOS/app"
+
+game_name="${destdir%.app}"
+game_name="${game_name##*/}"
+app_set_metadata -n "$game_name" -d "$game_name" \
+                 -i "com.kergoth.ags.$game_name" "$destdir"
